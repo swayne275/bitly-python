@@ -19,7 +19,7 @@ access_token = 'cb1da22a1c837ba3f8cd54781461397472cce43e'
 user_url = 'https://api-ssl.bitly.com/v4/user'
 group_guid = 'Bj71ifpGx2i'
 num_days = 30 # number of days for this problem
-bitlinks_list = []
+encoded_bitlinks_list = []
 
 api_version = "v0.1"
 
@@ -49,9 +49,9 @@ class ClickHandler(tornado.web.RequestHandler):
         try:
             populate_bitlinks()
             response = {}
-            response['sampledata'] = 'hello world'
-            response['bitlinks'] = bitlinks_list
+            response['bitlinks'] = encoded_bitlinks_list
             send_success(self, response)
+            populate_country_counts()
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
@@ -63,6 +63,11 @@ def get_group_guid():
         raise ValueError('default_group_guid type is invalid from Bitly')
     return data['default_group_guid']
 
+def populate_country_counts():
+    for encoded_bitlink in encoded_bitlinks_list:
+        data = http_get(get_country_url(encoded_bitlink))
+        print(json.dumps(data))
+
 def populate_bitlinks():
     data = http_get(get_bitlinks_url())
     if 'links' not in data:
@@ -72,8 +77,9 @@ def populate_bitlinks():
             raise ValueError('"link" field not in data retrieved from Bitly: ' + json.dumps(link_obj))
         if not isinstance(link_obj['link'], str):
             raise ValueError('"link" field data type from Bitly is incorrect')
-        encoded_url = urllib.parse.quote(link_obj['link'])
-        bitlinks_list.append(encoded_url)
+        # encoded_url = urllib.parse.quote(link_obj['link'])
+        encoded_url = link_obj['link']
+        encoded_bitlinks_list.append(encoded_url)
 
 def http_get(url):
     headers = {"Authorization": "Bearer " + access_token}
@@ -135,7 +141,8 @@ def set_group_guid():
 def get_bitlinks_url():
     return ('https://api-ssl.bitly.com/v4/groups/%s/bitlinks' % group_guid)
 
-def get_countries_url(bitlink):
+def get_country_url(bitlink):
+    print('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
     return ('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
 
 def make_app():
