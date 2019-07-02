@@ -2,8 +2,11 @@
 from datetime import datetime
 import signal
 import sys
+import json
 import tornado.ioloop
 import tornado.web # !!! SW requirement
+# for http requests
+import requests
 
 ##### Define basic error types #####
 generic_internal_err = 1 # generic internal error
@@ -39,9 +42,15 @@ class ClickHandler(tornado.web.RequestHandler):
         try:
             response = {}
             response['sampledata'] = 'hello world'
+            response['jsonresponse'] = request_first()
             send_success(self, response)
         except Exception as e:
             log("Error: could not handle clicks! " + e.message)
+
+def request_first():
+    r = requests.get(url=first_url)
+    data = r.json()
+    return data
 
 def handle_unimplemented(request_handler):
     """ Deal with routes and methods that aren't implemented
