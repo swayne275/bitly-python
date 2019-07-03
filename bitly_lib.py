@@ -15,7 +15,8 @@ async def async_get_group_guid(token):
     Params:
         token: Access token for Bitly API request
     Throws:
-        ValueError if group_guid is missing or the wrong type !!! SW throw TypeError for second
+        ValueError if group_guid is missing
+        TypeError if group_guid is the wrong data type
     Return:
         [string] default_group_guid for the provided access token
     """
@@ -25,7 +26,7 @@ async def async_get_group_guid(token):
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
     if not isinstance(response['default_group_guid'], str):
         log("Invalid guid data type from Bitly: " + json.dumps(response))
-        raise ValueError('"default_group_guid" from Bitly has invalid type')
+        raise TypeError('"default_group_guid" from Bitly has invalid type')
     return response['default_group_guid']
 
 async def async_get_bitlinks(token, group_guid):
@@ -50,7 +51,8 @@ def validate_bitlinks_response(response):
     Params:
         response: JSON data from Bitly containing bitlinks for a group_guid
     Throws:
-        ValueError if expected field is missing !!! SW typeerror for wrong type
+        ValueError if expected field is missing
+        TypeError if 'link' field is the wrong type
     """
     if 'links' not in response:
         raise ValueError('"links" field not in data retrieved from Bitly')
@@ -59,7 +61,7 @@ def validate_bitlinks_response(response):
             log('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
             raise ValueError('"link" field not in data retrieved from Bitly')
         if not isinstance(link_obj['link'], str):
-            raise ValueError('"link" field data type from Bitly is incorrect')
+            raise TypeError('"link" field data type from Bitly is incorrect')
 
 async def async_get_country_counts(token, encoded_bitlinks_list):
     """ Async get country click metrics, per bitlink, per month
