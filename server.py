@@ -17,11 +17,11 @@ bitly_api_data_err   = 3 # Bitly data was not formatted as expected
 bitly_api_http_err   = 4 # Bitly API gave an HTTP error
 bad_token_err        = 5 # User provided an invalid access_token
 
-access_token = "" # store given access token
+access_token = '' # store given access token
 user_url = 'https://api-ssl.bitly.com/v4/user'
 html_prefix_end = '://'
-group_guid = 'Bj71ifpGx2i' # !!! SW remove this
-num_days = 30 # number of days for this problem
+group_guid = ''   # store group_guid associated with access_token
+num_days = 30     # number of days to average over for this problem
 encoded_bitlinks_list = []
 bitlinks_data = {}
 
@@ -229,7 +229,6 @@ def server_init():
     signal.signal(signal.SIGINT, signal_handler)
 
 def set_group_guid():
-    # !!! SW validate that not forbidden/http error from API
     """ Set the group_guid for this request
     """
     global group_guid
