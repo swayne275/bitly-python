@@ -327,7 +327,7 @@ def validate_country_data(data):
 
 @tornado.gen.coroutine
 def async_http_get(base_url, token, params={}):
-    """ HTTP get wrapper that handles the authorization header for the Bitly API
+    """ Non-blocking HTTP get for use with an Authorization: Bearer access token
     Note: Expects JSON response from {url}
     Params:
         base_url: URL to HTTP Get data from (no query parameters)
@@ -344,25 +344,16 @@ def async_http_get(base_url, token, params={}):
     request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
 
     response = yield client.fetch(request)
-    json_body = json.loads(response.body)
-    raise tornado.gen.Return(json_body)
+    json_body = {}
+    try:
+        json_body = json.loads(response.body)
+    except Exception as e:
+        # In general don't catch generic, but functionally it doesn't matter
+        # why the JSON couldn't parse, just that it couldn't parse. Would not
+        # do in production
+        log("Could not parse json: " + str(e))
 
-def http_get(url, token, params={}):
-    """ HTTP get wrapper that handles the authorization header for the Bitly API
-    Note: Expects JSON response from {url}
-    Params:
-        url: URL to HTTP Get data from
-        token: Access token for Bitly API request
-        params: [optional] query parameters for the HTTP request
-    Throws:
-        requests.HTTPError if Bitly response status is not 200
-    Return:
-        JSON data resulting from the HTTP get
-    """
-    headers = {"Authorization": "Bearer " + token}
-    response = requests.get(url=url, headers=headers, params=params)
-    response.raise_for_status()
-    return response.json()
+    raise tornado.gen.Return(json_body)
 
 def get_user_url():
     """ Return Bitly API endpoint for getting the group_guid
