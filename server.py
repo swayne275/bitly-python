@@ -13,7 +13,7 @@ import urllib.parse
 ##### Define basic error types #####
 generic_internal_err = 1 # generic internal error
 unimplemented_err    = 2 # route or method was not implemented
-invalid_data         = 3 # expected data was not present
+bitly_api_err        = 3 # Bitly data was not formatted as expected
 
 access_token = "" # store given access token
 user_url = 'https://api-ssl.bitly.com/v4/user'
@@ -47,6 +47,8 @@ class ClickHandler(tornado.web.RequestHandler):
             response['bitlinks'] = encoded_bitlinks_list
             response['metrics'] = bitlinks_data
             send_success(self, response)
+        except ValueError as ve:
+            send_httperr(self, bitly_api_err, str(ve))
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
@@ -77,34 +79,52 @@ def populate_country_counts():
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
         data = http_get(get_country_url(encoded_bitlink), params=payload)
-        if 'metrics' not in data:
-            raise ValueError('"metrics" field missing from data returned by Bitly')
-        metrics_data = data['metrics']
-        for country_obj in metrics_data:
-            if 'value' not in country_obj:
-                raise ValueError('"value" missing from Bitly metrics data for: %s' % json.dumps(contry_obj))
-            if 'clicks' not in country_obj:
-                raise ValueError('"clicks" missing from Bitly metrics data for: %s' % json.dumps(country_obj))
+        validate_country_data(data)
+        for country_obj in data['metrics']:
             country_str = country_obj['value']
             country_clicks = country_obj['clicks']
             bitlinks_data[encoded_bitlink] = {}
             bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
 
+def validate_country_data(data):
+    """ Validate the Bitly data returned containing metrics for a bitlink
+    Params:
+        data: JSON data from Bitly containing bitlinks for a group_guid
+    """
+    if 'metrics' not in data:
+        raise ValueError('"metrics" field missing from data returned by Bitly')
+    for country_obj in data['metrics']:
+        if 'value' not in country_obj:
+            log('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
+            raise ValueError('"value" field not in data retrieved from Bitly')
+        if 'clicks' not in country_obj:
+            log('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
+            raise ValueError('"clicks" field not in data retrieved from Bitly')
+
 def populate_bitlinks():
     """ Get and store all bitlinks for a provided group_guid
     """
     data = http_get(get_bitlinks_url())
-    if 'links' not in data:
-        raise ValueError('"links" field not in data retrieved from Bitly')
+    validate_bitlinks_data(data)
     for link_obj in data['links']:
-        if 'link' not in link_obj:
-            raise ValueError('"link" field not in data retrieved from Bitly: ' + json.dumps(link_obj))
-        if not isinstance(link_obj['link'], str):
-            raise ValueError('"link" field data type from Bitly is incorrect')
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
         encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
         if encoded_bitlink not in encoded_bitlinks_list:
             encoded_bitlinks_list.append(encoded_bitlink)
+
+def validate_bitlinks_data(data):
+    """ Validate the Bitly data returned containing bitlinks for a group_guid
+    Params:
+        data: JSON data from Bitly containing bitlinks for a group_guid
+    """
+    if 'links' not in data:
+        raise ValueError('"links" field not in data retrieved from Bitly')
+    for link_obj in data['links']:
+        if 'link' not in link_obj:
+            log('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
+            raise ValueError('"link" field not in data retrieved from Bitly')
+        if not isinstance(link_obj['link'], str):
+            raise ValueError('"link" field data type from Bitly is incorrect')
 
 def http_get(url, params={}):
     """ HTTP get wrapper that handles the authorization header for the Bitly API
@@ -152,12 +172,13 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
         err_msg: Human-readable semi-specific error message
         status: [optional] HTTP code to send error as
     """
-    log("Sending HTTP error: " + err_msg)
+    uri = request_handler.request.uri
+    log("Sending HTTP error (for uri %s): %s" % (uri, err_msg))
     request_handler.set_header('Content-Type', 'application/json')
     http_err = {}
     http_err['errortype'] = err_type
     http_err['errormessage'] = err_msg
-    http_err['uri'] = request_handler.request.uri
+    http_err['uri'] = uri
     request_handler.set_status(status)
     request_handler.finish(http_err)
 
@@ -168,7 +189,6 @@ def log(log_msg):
     """
     log_data = "[" + str(datetime.now()) + "] %s" % log_msg
     print(log_data)
-    # !!! SW add file logging possibly
 
 def signal_handler(signal, frame):
     """ Install signal handler for things like Ctrl+C
