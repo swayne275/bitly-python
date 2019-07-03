@@ -1,0 +1,246 @@
+#!/usr/bin/python3
+from datetime import datetime
+import signal
+import sys
+import json
+import tornado.ioloop
+import tornado.web # !!! SW requirement
+# for http requests
+import requests
+# for url encoding
+import urllib.parse
+
+##### Define basic error types #####
+generic_internal_err = 1 # generic internal error
+unimplemented_err    = 2 # route or method was not implemented
+invalid_data         = 3 # expected data was not present
+
+access_token = "" # store given access token
+user_url = 'https://api-ssl.bitly.com/v4/user'
+html_prefix_end = '://'
+group_guid = 'Bj71ifpGx2i' # !!! SW remove this
+num_days = 30 # number of days for this problem
+encoded_bitlinks_list = []
+bitlinks_data = {}
+
+api_version = "v0.1"
+
+class MainHandler(tornado.web.RequestHandler):
+    def get(self):
+        try:
+            response = {}
+            response['apiversion'] = api_version
+            response['apidocumentation'] = 'In production I would give a doc link'
+            send_success(self, response)
+        except Exception as e:
+            log('Error: could not serve /: ' + str(e))
+
+    def post(self):
+        handle_unimplemented(self)
+
+class ClickHandler(tornado.web.RequestHandler):
+    def get(self):
+        try:
+            populate_bitlinks()
+            populate_country_counts()
+            response = {}
+            response['bitlinks'] = encoded_bitlinks_list
+            response['metrics'] = bitlinks_data
+            send_success(self, response)
+        except Exception as e:
+            log("Error: could not handle clicks! " + str(e))
+
+class GenericHandler(tornado.web.RequestHandler):
+    """ Handler for unimplemented routes/methods to return a nice error
+    """
+    def get(self):
+        handle_unimplemented(self)
+
+    def post(self):
+        handle_unimplemented(self)
+
+def get_group_guid():
+    """ Get the 'default_group_guid' using the provided access token
+    Return:
+        [string] default_group_guid for the provided access token
+    """
+    data = http_get(user_url)
+    if 'default_group_guid' not in data:
+        raise ValueError('default_group_guid not retrieved from Bitly')
+    if not isinstance(data['default_group_guid'], str):
+        raise ValueError('default_group_guid type is invalid from Bitly')
+    return data['default_group_guid']
+
+def populate_country_counts():
+    """ Package country click metrics per Bitlink
+    """
+    for encoded_bitlink in encoded_bitlinks_list:
+        payload = {'unit': 'month'}
+        data = http_get(get_country_url(encoded_bitlink), params=payload)
+        if 'metrics' not in data:
+            raise ValueError('"metrics" field missing from data returned by Bitly')
+        metrics_data = data['metrics']
+        for country_obj in metrics_data:
+            if 'value' not in country_obj:
+                raise ValueError('"value" missing from Bitly metrics data for: %s' % json.dumps(contry_obj))
+            if 'clicks' not in country_obj:
+                raise ValueError('"clicks" missing from Bitly metrics data for: %s' % json.dumps(country_obj))
+            country_str = country_obj['value']
+            country_clicks = country_obj['clicks']
+            bitlinks_data[encoded_bitlink] = {}
+            bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
+
+def populate_bitlinks():
+    """ Get and store all bitlinks for a provided group_guid
+    """
+    data = http_get(get_bitlinks_url())
+    if 'links' not in data:
+        raise ValueError('"links" field not in data retrieved from Bitly')
+    for link_obj in data['links']:
+        if 'link' not in link_obj:
+            raise ValueError('"link" field not in data retrieved from Bitly: ' + json.dumps(link_obj))
+        if not isinstance(link_obj['link'], str):
+            raise ValueError('"link" field data type from Bitly is incorrect')
+        bitlink_domain_hash = parse_bitlink(link_obj['link'])
+        encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
+        if encoded_bitlink not in encoded_bitlinks_list:
+            encoded_bitlinks_list.append(encoded_bitlink)
+
+def http_get(url, params={}):
+    """ HTTP get wrapper that handles the authorization header for the Bitly API
+    Note: Expects JSON response from {url}
+    Params:
+        url: URL to HTTP Get data from
+        params: [optional] query parameters for the HTTP request
+    Return:
+        JSON data resulting from the HTTP get
+    """
+    headers = {"Authorization": "Bearer " + access_token}
+    r = requests.get(url=url, headers=headers, params=params)
+    return r.json()
+
+def handle_unimplemented(request_handler):
+    """ Return pretty JSON for unimplemented routes and methods
+    Params:
+        request_handler: Tornado API endpoint handler implementing this
+    """
+    try:
+        send_httperr(request_handler, unimplemented_err, "Not implemented", status=501)
+    except Exception as e:
+        log("Error: Could not respond to unimplemented route/method: " + str(e))
+
+def send_success(request_handler, json_body):
+    """ Handle boilerplate for returning HTTP 200 with data
+    Params:
+        calling_handler: Tornado API endpoint sending success + data
+        json_body: JSON data to send to the client
+    """
+    try:
+        request_handler.set_header('Content-Type', 'application/json')
+        json_body['uri'] = request_handler.request.uri
+    except Exception as e:
+        send_httperr(request_handler, generic_internal_err,
+            "Error making success response: " + str(e))
+    else:
+        request_handler.write(json_body)
+
+def send_httperr(request_handler, err_type, err_msg, status=500):
+    """ Handle boilerplate for returning HTTP error with message
+    Params
+        calling_handler: Tornado API endpoint returning error
+        err_type: Type enum for automations to better understand
+        err_msg: Human-readable semi-specific error message
+        status: [optional] HTTP code to send error as
+    """
+    log("Sending HTTP error: " + err_msg)
+    request_handler.set_header('Content-Type', 'application/json')
+    http_err = {}
+    http_err['errortype'] = err_type
+    http_err['errormessage'] = err_msg
+    http_err['uri'] = request_handler.request.uri
+    request_handler.set_status(status)
+    request_handler.finish(http_err)
+
+def log(log_msg):
+    """ Standardized way to log a message (read: print to console)
+    Params:
+        log_msg: Message to log, ideally human-readable
+    """
+    log_data = "[" + str(datetime.now()) + "] %s" % log_msg
+    print(log_data)
+    # !!! SW add file logging possibly
+
+def signal_handler(signal, frame):
+    """ Install signal handler for things like Ctrl+C
+    """
+    log("Caught signal, exiting...")
+    sys.exit(0)
+
+def server_init():
+    """ Perform pre-app init tasks before initializing the web server
+    """
+    log("Initializing Bitly Backend Test API web server")
+    signal.signal(signal.SIGINT, signal_handler)
+
+def set_access_token(token):
+    """ Set the access token for this run of the program
+    !!! SW will remove when ported to take as part of request
+    !!! SW turn into mini access token validator
+    """
+    global access_token
+    access_token = token
+
+def set_group_guid():
+    """ Set the group_guid for this request
+    """
+    global group_guid
+    group_guid = get_group_guid()
+
+def get_bitlinks_url():
+    """ Return Bitly API endpoint for accessing group_guid bitlinks
+    """
+    return ('https://api-ssl.bitly.com/v4/groups/%s/bitlinks' % group_guid)
+
+def get_country_url(bitlink):
+    """ Return Bitly API endpoint for accessing bitly metrics by country
+    """
+    return ('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
+
+def parse_bitlink(bitlink_url):
+    """ Strip a URL of the HTML scheme and delimiter
+    Params:
+        bitlink_url: complete URL of the bitlink to strip
+    Return:
+        Domain and hash of the bitlink
+    """
+    prefix_start_pos = bitlink_url.find(html_prefix_end)
+    # increment the counter the last char of the '{scheme}://' URL component
+    prefix_end_pos = prefix_start_pos + len(html_prefix_end)
+    # return the domain and hash of the bitlink
+    return bitlink_url[prefix_end_pos:]
+
+def make_app():
+    """ Set up the tornado web server handlers
+    Return:
+        Tornado web app to run
+    """
+    return tornado.web.Application([
+        ("/", MainHandler),
+        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
+        ("/.*", GenericHandler)
+    ])
+
+if __name__ == "__main__":
+    try:
+        log("Starting Bitly backend test API, version %s" % api_version)
+        set_access_token('cb1da22a1c837ba3f8cd54781461397472cce43e')
+        # verify can get group_guid and type
+        set_group_guid()
+        server_init()
+        # Start the http webserver
+        app = make_app()
+        app.listen(8080)
+        log("started http server on port 8080")
+        tornado.ioloop.IOLoop.current().start()
+    except Exception as e:
+        log("Could not start API on port 8080: " +str(e))
