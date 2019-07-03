@@ -26,6 +26,15 @@ num_days = 30     # number of days to average over for this problem
 api_version = "v0.1"
 
 class MainHandler(tornado.web.RequestHandler):
+    def write_error(self, status_code, **kwargs):
+        self.set_header('Content-Type', 'application/json')
+        self.finish(json.dumps({
+            'error': {
+                'code': status_code,
+                'message': self._reason,
+            }
+        }))
+
     def get(self):
         try:
             response = {}
@@ -35,10 +44,16 @@ class MainHandler(tornado.web.RequestHandler):
         except Exception as e:
             log('Error: could not serve /: ' + str(e))
 
-    def post(self):
-        handle_unimplemented(self)
-
 class ClickHandler(tornado.web.RequestHandler):
+    def write_error(self, status_code, **kwargs):
+        self.set_header('Content-Type', 'application/json')
+        self.finish(json.dumps({
+            'error': {
+                'code': status_code,
+                'message': self._reason,
+            }
+        }))
+
     def get(self):
         try:
             token = get_access_token(self)
@@ -62,13 +77,18 @@ class ClickHandler(tornado.web.RequestHandler):
             log("Error: could not handle clicks! " + str(e))
 
 class GenericHandler(tornado.web.RequestHandler):
-    """ Handler for unimplemented routes/methods to return a nice error
-    """
-    def get(self):
-        handle_unimplemented(self)
+    def write_error(self, status_code, **kwargs):
+        self.set_header('Content-Type', 'application/json')
+        self.finish(json.dumps({
+            'error': {
+                'code': status_code,
+                'message': self._reason,
+            }
+        }))
 
+"""
     def post(self):
-        handle_unimplemented(self)
+        handle_unimplemented(self)"""
 
 ##### Web server utilities #####
 
