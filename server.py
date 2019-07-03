@@ -10,6 +10,9 @@ import requests
 # for url encoding
 import urllib.parse
 
+##### Define port for web server to listen on #####
+web_server_port = 8080
+
 ##### Define basic error types #####
 generic_internal_err = 1 # generic internal error
 unimplemented_err    = 2 # route or method was not implemented
@@ -275,8 +278,8 @@ if __name__ == "__main__":
         server_init()
         # Start the http webserver
         app = make_app()
-        app.listen(8080)
-        log("started http server on port 8080")
+        app.listen(web_server_port)
+        log("started http server on port %d" % web_server_port)
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        log("Could not start API on port 8080: " +str(e))
+        log("Could not start API on port %d: %s" % (web_server_port, str(e)))
