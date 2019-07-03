@@ -6,7 +6,7 @@ import json                   # for JSON manipulation
 import tornado.ioloop         # for web server hosting
 import tornado.web            # for web server hosting
 import tornado.gen            # for building an async API in tornado
-import tornado.httpclient     # for async http client
+import tornado.httpclient     # for HTTP exceptions from tornado AsyncHTTPClient
 import bitly_lib as bitly     # for bitly api interactions
 
 ##### Define port for web server to listen on #####
@@ -131,7 +131,7 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
     request_handler.finish(http_err)
 
 def log(log_msg):
-    """ Standardized way to log a message (read: output to console)
+    """ Standardized way to log a server message (read: output to console)
     Params:
         log_msg: Message to log, ideally human-readable
     """

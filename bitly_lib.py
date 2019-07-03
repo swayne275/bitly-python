@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 import json                   # for json manipulation
 import tornado.gen            # for async http gets to Bitly API
+import tornado.httpclient     # for async http client
+import tornado.httputil       # for various http client utilities
 import urllib.parse           # for bitly url encoding
 from datetime import datetime # for log message timing
 
@@ -27,6 +29,8 @@ async def async_get_group_guid(token):
     """ Async get the 'default_group_guid' using the provided access token
     Params:
         token: Access token for Bitly API request
+    Throws:
+        ValueError if group_guid is missing or the wrong type !!! SW throw TypeError for second
     Return:
         [string] default_group_guid for the provided access token
     """
@@ -60,6 +64,8 @@ def validate_bitlinks_response(response):
     """ Validate the Bitly data returned containing bitlinks for a group_guid
     Params:
         response: JSON data from Bitly containing bitlinks for a group_guid
+    Throws:
+        ValueError if expected field is missing !!! SW typeerror for wrong type
     """
     if 'links' not in response:
         raise ValueError('"links" field not in data retrieved from Bitly')
@@ -101,6 +107,8 @@ def validate_country_response(response):
     """ Validate the Bitly data returned containing metrics for a bitlink
     Params:
         response: JSON data from Bitly containing bitlinks for a group_guid
+    Throws:
+        ValueError if expected field is missing
     """
     if 'metrics' not in response:
         raise ValueError('"metrics" field not in data retrieved from Bitly')
@@ -121,7 +129,7 @@ def async_http_get(base_url, token, params={}):
         token: Access token for Bitly API request
         params: [optional] query parameters for the HTTP request
     Throws:
-        requests.HTTPError if Bitly response status is not 200
+        tornado.httpclient.HTTPError if Bitly response status is not 200
     Return:
         JSON data resulting from the HTTP get
     """
@@ -173,7 +181,7 @@ def parse_bitlink(bitlink_url):
     return bitlink_url[prefix_end_pos:]
 
 def log(log_msg):
-    """ Standardized way to log a message (read: output to console)
+    """ Standardized way to log a bitly_lib message (read: output to console)
     Params:
         log_msg: Message to log, ideally human-readable
     """
