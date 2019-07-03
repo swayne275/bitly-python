@@ -126,6 +126,37 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
     request_handler.set_status(status)
     request_handler.finish(http_err)
 
+def log(log_msg):
+    """ Standardized way to log a message (read: print to console)
+    Params:
+        log_msg: Message to log, ideally human-readable
+    """
+    log_data = "[" + str(datetime.now()) + "] %s" % log_msg
+    print(log_data)
+
+def signal_handler(signal, frame):
+    """ Install signal handler for things like Ctrl+C
+    """
+    log("Caught signal, exiting...")
+    sys.exit(0)
+
+def server_init():
+    """ Perform pre-app init tasks before initializing the web server
+    """
+    log("Initializing Bitly Backend Test API web server")
+    signal.signal(signal.SIGINT, signal_handler)
+
+def make_app():
+    """ Set up the tornado web server handlers
+    Return:
+        Tornado web app to run
+    """
+    return tornado.web.Application([
+        ("/", MainHandler),
+        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
+        ("/.*", GenericHandler)
+    ])
+
 ##### Bitly API Utilities #####
 
 def get_access_token(request_handler):
@@ -278,37 +309,6 @@ def parse_bitlink(bitlink_url):
     prefix_end_pos = prefix_start_pos + len(html_prefix_end)
     # return the domain and hash of the bitlink
     return bitlink_url[prefix_end_pos:]
-
-def log(log_msg):
-    """ Standardized way to log a message (read: print to console)
-    Params:
-        log_msg: Message to log, ideally human-readable
-    """
-    log_data = "[" + str(datetime.now()) + "] %s" % log_msg
-    print(log_data)
-
-def signal_handler(signal, frame):
-    """ Install signal handler for things like Ctrl+C
-    """
-    log("Caught signal, exiting...")
-    sys.exit(0)
-
-def server_init():
-    """ Perform pre-app init tasks before initializing the web server
-    """
-    log("Initializing Bitly Backend Test API web server")
-    signal.signal(signal.SIGINT, signal_handler)
-
-def make_app():
-    """ Set up the tornado web server handlers
-    Return:
-        Tornado web app to run
-    """
-    return tornado.web.Application([
-        ("/", MainHandler),
-        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
-        ("/.*", GenericHandler)
-    ])
 
 if __name__ == "__main__":
     try:
