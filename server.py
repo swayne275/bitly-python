@@ -1,14 +1,12 @@
 #!/usr/bin/python3
-from datetime import datetime
-import signal
-import sys
-import json
-import tornado.ioloop
-import tornado.web
-# for http requests
-import requests
-# for url encoding
-import urllib.parse
+from datetime import datetime # for log message timing
+import signal                 # for signal handling
+import sys                    # for signal handling
+import json                   # for JSON manipulation
+import tornado.ioloop         # for web server hosting
+import tornado.web            # for web server hosting
+import requests               # for http requests
+import urllib.parse           # for bitly url encoding
 
 ##### Define port for web server to listen on #####
 web_server_port = 8080
@@ -19,13 +17,13 @@ bitly_api_data_err   = 2 # Bitly data was not formatted as expected
 bitly_api_http_err   = 3 # Bitly API gave an HTTP error
 bad_token_err        = 4 # User provided an invalid access_token
 
+##### Define convenience variables #####
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
-
 api_version = "v0.1"
 
 class MainHandler(tornado.web.RequestHandler):
-    """ Handle / by returning basic API data
+    """ Handle gets for '/' by returning basic API data
     """
     def get(self):
         try:
@@ -42,7 +40,7 @@ class MainHandler(tornado.web.RequestHandler):
         override_write_error(self, status_code)
 
 class ClickHandler(tornado.web.RequestHandler):
-    """ Handle the main endpoint !!! SW fill in and return bitlinks country metrics
+    """ Handle gets for the main endpoint !!! SW fill in and return bitlinks country metrics
     """
     def get(self):
         try:
