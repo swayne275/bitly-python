@@ -66,7 +66,6 @@ class ClickHandler(tornado.web.RequestHandler):
             log("Bitly API raised an HTTP error: " + str(http_err))
             send_httperr(self, bitly_api_http_err, str(http_err))
         except Exception as e:
-            log("Exception type: " + type(e).__name__)
             log("Error: could not handle clicks! " + str(e))
 
     @tornado.gen.coroutine
@@ -159,9 +158,9 @@ def make_app():
         Tornado web app to run
     """
     return tornado.web.Application([
-        ("/", MainHandler),
+        ("/",                               MainHandler),
         ("/api/%s/metrics/?" % api_version, ClickHandler),
-        ("/.*", GenericHandler)
+        ("/.*",                             GenericHandler)
     ])
 
 ##### Bitly API Utilities #####
@@ -206,7 +205,7 @@ async def async_get_bitlinks(token, group_guid):
         List of encoded domain/hashes for the bitlinks for this group_guid
     """
     response = await async_http_get(get_bitlinks_url(group_guid), token)
-    validate_bitlinks_data(response)
+    validate_bitlinks_response(response)
     encoded_bitlinks_list = []
     for link_obj in response['links']:
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
@@ -214,14 +213,14 @@ async def async_get_bitlinks(token, group_guid):
         encoded_bitlinks_list.append(encoded_bitlink)
     return encoded_bitlinks_list
 
-def validate_bitlinks_data(data):
+def validate_bitlinks_response(response):
     """ Validate the Bitly data returned containing bitlinks for a group_guid
     Params:
-        data: JSON data from Bitly containing bitlinks for a group_guid
+        response: JSON data from Bitly containing bitlinks for a group_guid
     """
-    if 'links' not in data:
+    if 'links' not in response:
         raise ValueError('"links" field not in data retrieved from Bitly')
-    for link_obj in data['links']:
+    for link_obj in response['links']:
         if 'link' not in link_obj:
             log('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
             raise ValueError('"link" field not in data retrieved from Bitly')
@@ -246,23 +245,23 @@ async def async_get_country_counts(token, encoded_bitlinks_list):
     bitlinks_data = {}
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
-        data = await async_http_get(get_country_url(encoded_bitlink), token, params=payload)
-        validate_country_data(data)
-        for country_obj in data['metrics']:
+        response = await async_http_get(get_country_url(encoded_bitlink), token, params=payload)
+        validate_country_response(response)
+        for country_obj in response['metrics']:
             country_str = country_obj['value']
             country_clicks = country_obj['clicks']
             bitlinks_data[encoded_bitlink] = {}
             bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
     return bitlinks_data
 
-def validate_country_data(data):
+def validate_country_response(response):
     """ Validate the Bitly data returned containing metrics for a bitlink
     Params:
-        data: JSON data from Bitly containing bitlinks for a group_guid
+        response: JSON data from Bitly containing bitlinks for a group_guid
     """
-    if 'metrics' not in data:
+    if 'metrics' not in response:
         raise ValueError('"metrics" field not in data retrieved from Bitly')
-    for country_obj in data['metrics']:
+    for country_obj in response['metrics']:
         if 'value' not in country_obj:
             log('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"value" field not in data retrieved from Bitly')
