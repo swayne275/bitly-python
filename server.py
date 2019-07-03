@@ -96,16 +96,6 @@ def override_write_error(request_handler, status_code):
             }
         }))
 
-def handle_unimplemented(request_handler):
-    """ Return pretty JSON for unimplemented routes and methods
-    Params:
-        request_handler: Tornado API endpoint handler implementing this
-    """
-    try:
-        send_httperr(request_handler, unimplemented_err, "Not implemented", status=501)
-    except Exception as e:
-        log("Error: Could not respond to unimplemented route/method: " + str(e))
-
 def send_success(request_handler, json_body):
     """ Handle boilerplate for returning HTTP 200 with data
     Params:
