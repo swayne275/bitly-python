@@ -38,13 +38,9 @@ class MainHandler(tornado.web.RequestHandler):
             log('Error: could not serve /: ' + str(e))
 
     def write_error(self, status_code, **kwargs):
-        self.set_header('Content-Type', 'application/json')
-        self.finish(json.dumps({
-            'error': {
-                'code': status_code,
-                'message': self._reason,
-            }
-        }))
+        """ See override_write_error for details
+        """
+        override_write_error(self, status_code)
 
 class ClickHandler(tornado.web.RequestHandler):
     """ Handle the main endpoint !!! SW fill in and return bitlinks country metrics
@@ -72,31 +68,33 @@ class ClickHandler(tornado.web.RequestHandler):
             log("Error: could not handle clicks! " + str(e))
 
     def write_error(self, status_code, **kwargs):
-        self.set_header('Content-Type', 'application/json')
-        self.finish(json.dumps({
-            'error': {
-                'code': status_code,
-                'message': self._reason,
-            }
-        }))
+        """ See override_write_error for details
+        """
+        override_write_error(self, status_code)
 
 class GenericHandler(tornado.web.RequestHandler):
     """ Handle all unspecified endpoints by returning a pretty JSON error
     """
     def write_error(self, status_code, **kwargs):
-        self.set_header('Content-Type', 'application/json')
-        self.finish(json.dumps({
-            'error': {
-                'code': status_code,
-                'message': self._reason,
-            }
-        }))
-
-"""
-    def post(self):
-        handle_unimplemented(self)"""
+        """ See override_write_error for details
+        """
+        override_write_error(self, status_code)
 
 ##### Web server utilities #####
+
+def override_write_error(request_handler, status_code):
+    """ Override the default tornado write_error to return pretty JSON
+    Params:
+        request_handler: Tornado API endpoint handler implementing this
+        status_code: HTML status code
+    """
+    request_handler.set_header('Content-Type', 'application/json')
+    request_handler.finish(json.dumps({
+            'error': {
+                'code': status_code,
+                'message': request_handler._reason,
+            }
+        }))
 
 def handle_unimplemented(request_handler):
     """ Return pretty JSON for unimplemented routes and methods
