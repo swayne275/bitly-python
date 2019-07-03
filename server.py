@@ -17,7 +17,8 @@ invalid_data         = 3 # expected data was not present
 
 access_token = 'cb1da22a1c837ba3f8cd54781461397472cce43e'
 user_url = 'https://api-ssl.bitly.com/v4/user'
-group_guid = 'Bj71ifpGx2i'
+html_prefix_end = '://'
+group_guid = 'Bj71ifpGx2i' # !!! SW remove this
 num_days = 30 # number of days for this problem
 encoded_bitlinks_list = []
 
@@ -66,6 +67,7 @@ def get_group_guid():
 def populate_country_counts():
     for encoded_bitlink in encoded_bitlinks_list:
         data = http_get(get_country_url(encoded_bitlink))
+        # !!! SW continue here
         print(json.dumps(data))
 
 def populate_bitlinks():
@@ -77,9 +79,9 @@ def populate_bitlinks():
             raise ValueError('"link" field not in data retrieved from Bitly: ' + json.dumps(link_obj))
         if not isinstance(link_obj['link'], str):
             raise ValueError('"link" field data type from Bitly is incorrect')
-        # encoded_url = urllib.parse.quote(link_obj['link'])
-        encoded_url = link_obj['link']
-        encoded_bitlinks_list.append(encoded_url)
+        bitlink_domain_hash = parse_bitlink(link_obj['link'])
+        encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
+        encoded_bitlinks_list.append(encoded_bitlink)
 
 def http_get(url):
     headers = {"Authorization": "Bearer " + access_token}
@@ -142,8 +144,14 @@ def get_bitlinks_url():
     return ('https://api-ssl.bitly.com/v4/groups/%s/bitlinks' % group_guid)
 
 def get_country_url(bitlink):
-    print('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
     return ('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
+
+def parse_bitlink(bitlink_url):
+    prefix_start_pos = bitlink_url.find(html_prefix_end)
+    # increment the counter the last char of the '{scheme}://' URL component
+    prefix_end_pos = prefix_start_pos + len(html_prefix_end)
+    # return the domain and hash of the bitlink
+    return bitlink_url[prefix_end_pos:]
 
 def make_app():
     return tornado.web.Application([
