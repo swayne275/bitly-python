@@ -63,10 +63,11 @@ class ClickHandler(tornado.web.RequestHandler):
             send_success(self, response)
         except ValueError as value_error:
             send_httperr(self, bitly_api_data_err, str(value_error))
-        except requests.HTTPError as http_err:
+        except tornado.httpclient.HTTPError as http_err:
             log("Bitly API raised an HTTP error: " + str(http_err))
             send_httperr(self, bitly_api_http_err, str(http_err))
         except Exception as e:
+            log("Exception type: " + type(e).__name__)
             log("Error: could not handle clicks! " + str(e))
 
     @tornado.gen.coroutine
