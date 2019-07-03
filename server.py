@@ -1,31 +1,30 @@
 #!/usr/bin/python3
-from datetime import datetime
-import signal
-import sys
-import json
-import tornado.ioloop
-import tornado.web
-# for http requests
-import requests
-# for url encoding
-import urllib.parse
+from datetime import datetime # for log message timing
+import signal                 # for signal handling
+import sys                    # for signal handling
+import json                   # for JSON manipulation
+import tornado.ioloop         # for web server hosting
+import tornado.web            # for web server hosting
+import requests               # for http requests
+import urllib.parse           # for bitly url encoding
 
 ##### Define port for web server to listen on #####
 web_server_port = 8080
 
 ##### Define basic error types #####
 generic_internal_err = 1 # generic internal error
-unimplemented_err    = 2 # route or method was not implemented
-bitly_api_data_err   = 3 # Bitly data was not formatted as expected
-bitly_api_http_err   = 4 # Bitly API gave an HTTP error
-bad_token_err        = 5 # User provided an invalid access_token
+bitly_api_data_err   = 2 # Bitly data was not formatted as expected
+bitly_api_http_err   = 3 # Bitly API gave an HTTP error
+bad_token_err        = 4 # User provided an invalid access_token
 
+##### Define convenience variables #####
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
-
 api_version = "v0.1"
 
 class MainHandler(tornado.web.RequestHandler):
+    """ Handle gets for '/' by returning basic API data
+    """
     def get(self):
         try:
             response = {}
@@ -35,10 +34,14 @@ class MainHandler(tornado.web.RequestHandler):
         except Exception as e:
             log('Error: could not serve /: ' + str(e))
 
-    def post(self):
-        handle_unimplemented(self)
+    def write_error(self, status_code, **kwargs):
+        """ See override_write_error for details
+        """
+        override_write_error(self, status_code)
 
 class ClickHandler(tornado.web.RequestHandler):
+    """ Handle gets for the main endpoint !!! SW fill in and return bitlinks country metrics
+    """
     def get(self):
         try:
             token = get_access_token(self)
@@ -61,26 +64,34 @@ class ClickHandler(tornado.web.RequestHandler):
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
-class GenericHandler(tornado.web.RequestHandler):
-    """ Handler for unimplemented routes/methods to return a nice error
-    """
-    def get(self):
-        handle_unimplemented(self)
+    def write_error(self, status_code, **kwargs):
+        """ See override_write_error for details
+        """
+        override_write_error(self, status_code)
 
-    def post(self):
-        handle_unimplemented(self)
+class GenericHandler(tornado.web.RequestHandler):
+    """ Handle all unspecified endpoints by returning a pretty JSON error
+    """
+    def write_error(self, status_code, **kwargs):
+        """ See override_write_error for details
+        """
+        override_write_error(self, status_code)
 
 ##### Web server utilities #####
 
-def handle_unimplemented(request_handler):
-    """ Return pretty JSON for unimplemented routes and methods
+def override_write_error(request_handler, status_code):
+    """ Override the default tornado write_error to return pretty JSON
     Params:
         request_handler: Tornado API endpoint handler implementing this
+        status_code: HTML status code
     """
-    try:
-        send_httperr(request_handler, unimplemented_err, "Not implemented", status=501)
-    except Exception as e:
-        log("Error: Could not respond to unimplemented route/method: " + str(e))
+    request_handler.set_header('Content-Type', 'application/json')
+    request_handler.finish(json.dumps({
+            'error': {
+                'code': status_code,
+                'message': request_handler._reason,
+            }
+        }))
 
 def send_success(request_handler, json_body):
     """ Handle boilerplate for returning HTTP 200 with data
@@ -114,6 +125,37 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
     http_err['uri'] = uri
     request_handler.set_status(status)
     request_handler.finish(http_err)
+
+def log(log_msg):
+    """ Standardized way to log a message (read: print to console)
+    Params:
+        log_msg: Message to log, ideally human-readable
+    """
+    log_data = "[" + str(datetime.now()) + "] %s" % log_msg
+    print(log_data)
+
+def signal_handler(signal, frame):
+    """ Install signal handler for things like Ctrl+C
+    """
+    log("Caught signal, exiting...")
+    sys.exit(0)
+
+def server_init():
+    """ Perform pre-app init tasks before initializing the web server
+    """
+    log("Initializing Bitly Backend Test API web server")
+    signal.signal(signal.SIGINT, signal_handler)
+
+def make_app():
+    """ Set up the tornado web server handlers
+    Return:
+        Tornado web app to run
+    """
+    return tornado.web.Application([
+        ("/", MainHandler),
+        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
+        ("/.*", GenericHandler)
+    ])
 
 ##### Bitly API Utilities #####
 
@@ -267,37 +309,6 @@ def parse_bitlink(bitlink_url):
     prefix_end_pos = prefix_start_pos + len(html_prefix_end)
     # return the domain and hash of the bitlink
     return bitlink_url[prefix_end_pos:]
-
-def log(log_msg):
-    """ Standardized way to log a message (read: print to console)
-    Params:
-        log_msg: Message to log, ideally human-readable
-    """
-    log_data = "[" + str(datetime.now()) + "] %s" % log_msg
-    print(log_data)
-
-def signal_handler(signal, frame):
-    """ Install signal handler for things like Ctrl+C
-    """
-    log("Caught signal, exiting...")
-    sys.exit(0)
-
-def server_init():
-    """ Perform pre-app init tasks before initializing the web server
-    """
-    log("Initializing Bitly Backend Test API web server")
-    signal.signal(signal.SIGINT, signal_handler)
-
-def make_app():
-    """ Set up the tornado web server handlers
-    Return:
-        Tornado web app to run
-    """
-    return tornado.web.Application([
-        ("/", MainHandler),
-        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
-        ("/.*", GenericHandler)
-    ])
 
 if __name__ == "__main__":
     try:
