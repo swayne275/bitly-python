@@ -4,7 +4,7 @@ import signal
 import sys
 import json
 import tornado.ioloop
-import tornado.web # !!! SW requirement
+import tornado.web
 # for http requests
 import requests
 # for url encoding
@@ -23,7 +23,6 @@ bad_token_err        = 5 # User provided an invalid access_token
 access_token = '' # store given access token
 user_url = 'https://api-ssl.bitly.com/v4/user'
 html_prefix_end = '://'
-group_guid = ''   # store group_guid associated with access_token
 num_days = 30     # number of days to average over for this problem
 encoded_bitlinks_list = []
 bitlinks_data = {}
@@ -50,8 +49,8 @@ class ClickHandler(tornado.web.RequestHandler):
             if not token_valid:
                 send_httperr(self, bad_token_err, token_err, status=401)
                 return
-            set_group_guid()
-            populate_bitlinks()
+            group_guid = get_group_guid()
+            populate_bitlinks(group_guid)
             populate_country_counts()
             response = {}
             response['metrics'] = bitlinks_data
@@ -127,10 +126,12 @@ def validate_country_data(data):
             log('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
-def populate_bitlinks():
+def populate_bitlinks(group_guid):
     """ Get and store all bitlinks for a provided group_guid
+    Params:
+        group_guid: group_guid to get the bitlinks for
     """
-    data = http_get(get_bitlinks_url())
+    data = http_get(get_bitlinks_url(group_guid))
     validate_bitlinks_data(data)
     for link_obj in data['links']:
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
@@ -231,14 +232,10 @@ def server_init():
     log("Initializing Bitly Backend Test API web server")
     signal.signal(signal.SIGINT, signal_handler)
 
-def set_group_guid():
-    """ Set the group_guid for this request
-    """
-    global group_guid
-    group_guid = get_group_guid()
-
-def get_bitlinks_url():
+def get_bitlinks_url(group_guid):
     """ Return Bitly API endpoint for accessing group_guid bitlinks
+    Params:
+        group_guid: group_guid to use to build this URL
     """
     return ('https://api-ssl.bitly.com/v4/groups/%s/bitlinks' % group_guid)
 
