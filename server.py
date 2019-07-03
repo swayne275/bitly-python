@@ -84,7 +84,6 @@ def get_access_token(request_handler):
         # strings are "falsy"
         return None
     return token
-    
 
 def get_group_guid(token):
     """ Get the 'default_group_guid' using the provided access token
