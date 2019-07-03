@@ -5,7 +5,8 @@ import sys                    # for signal handling
 import json                   # for JSON manipulation
 import tornado.ioloop         # for web server hosting
 import tornado.web            # for web server hosting
-import requests               # for http requests
+import tornado.gen            # for building an async API in tornado
+import tornado.httpclient     # for async http client
 import urllib.parse           # for bitly url encoding
 
 ##### Define port for web server to listen on #####
@@ -18,13 +19,14 @@ bitly_api_http_err   = 3 # Bitly API gave an HTTP error
 bad_token_err        = 4 # User provided an invalid access_token
 
 ##### Define convenience variables #####
-html_prefix_end = '://'
-num_days = 30     # number of days to average over for this problem
-api_version = "v0.1"
+html_prefix_end = '://' # delimiter between url scheme and domain
+num_days = 30           # number of days to average over for this problem
+api_version = "v1"      # api version served by this file
 
 class MainHandler(tornado.web.RequestHandler):
     """ Handle gets for '/' by returning basic API data
     """
+    @tornado.gen.coroutine
     def get(self):
         try:
             response = {}
@@ -34,14 +36,16 @@ class MainHandler(tornado.web.RequestHandler):
         except Exception as e:
             log('Error: could not serve /: ' + str(e))
 
+    @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
         """
         override_write_error(self, status_code)
 
 class ClickHandler(tornado.web.RequestHandler):
-    """ Handle gets for the main endpoint !!! SW fill in and return bitlinks country metrics
+    """ Handle "/api/<ver>/metrics" and return bitlinks country metrics
     """
+    @tornado.gen.coroutine
     def get(self):
         try:
             token = get_access_token(self)
@@ -49,21 +53,22 @@ class ClickHandler(tornado.web.RequestHandler):
                 send_httperr(self, bad_token_err, "Invalid access token provided",
                     status=401)
                 return
-            group_guid = get_group_guid(token)
-            encoded_bitlinks_list = get_bitlinks(token, group_guid)
-            bitlinks_data = get_country_counts(token, encoded_bitlinks_list)
+            group_guid = yield async_get_group_guid(token)
+            encoded_bitlinks_list = yield async_get_bitlinks(token, group_guid)
+            bitlinks_data = yield async_get_country_counts(token, encoded_bitlinks_list)
 
             response = {}
             response['metrics'] = bitlinks_data
             send_success(self, response)
         except ValueError as value_error:
             send_httperr(self, bitly_api_data_err, str(value_error))
-        except requests.HTTPError as http_err:
+        except tornado.httpclient.HTTPError as http_err:
             log("Bitly API raised an HTTP error: " + str(http_err))
             send_httperr(self, bitly_api_http_err, str(http_err))
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
+    @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
         """
@@ -72,6 +77,7 @@ class ClickHandler(tornado.web.RequestHandler):
 class GenericHandler(tornado.web.RequestHandler):
     """ Handle all unspecified endpoints by returning a pretty JSON error
     """
+    @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
         """
@@ -127,7 +133,7 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
     request_handler.finish(http_err)
 
 def log(log_msg):
-    """ Standardized way to log a message (read: print to console)
+    """ Standardized way to log a message (read: output to console)
     Params:
         log_msg: Message to log, ideally human-readable
     """
@@ -152,9 +158,9 @@ def make_app():
         Tornado web app to run
     """
     return tornado.web.Application([
-        ("/", MainHandler),
-        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
-        ("/.*", GenericHandler)
+        ("/",                               MainHandler),
+        ("/api/%s/metrics/?" % api_version, ClickHandler),
+        ("/.*",                             GenericHandler)
     ])
 
 ##### Bitly API Utilities #####
@@ -174,55 +180,55 @@ def get_access_token(request_handler):
         return None
     return token
 
-def get_group_guid(token):
-    """ Get the 'default_group_guid' using the provided access token
+async def async_get_group_guid(token):
+    """ Async get the 'default_group_guid' using the provided access token
     Params:
         token: Access token for Bitly API request
     Return:
         [string] default_group_guid for the provided access token
     """
-    data = http_get(get_user_url(), token)
-    if 'default_group_guid' not in data:
-        log("Missing guid data from Bitly: " + json.dumps(data))
+    response = await async_http_get(get_user_url(), token)
+    if 'default_group_guid' not in response:
+        log("Missing guid data from Bitly: " + json.dumps(response))
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
-    if not isinstance(data['default_group_guid'], str):
-        log("Invalid guid data type from Bitly: " + json.dumps(data))
+    if not isinstance(response['default_group_guid'], str):
+        log("Invalid guid data type from Bitly: " + json.dumps(response))
         raise ValueError('"default_group_guid" from Bitly has invalid type')
-    return data['default_group_guid']
+    return response['default_group_guid']
 
-def get_bitlinks(token, group_guid):
-    """ Get and store all bitlinks for a provided group_guid
+async def async_get_bitlinks(token, group_guid):
+    """ Async get and store all bitlinks for a provided group_guid
     Params:
         token: Access token for Bitly API request
         group_guid: group_guid to get the bitlinks for
     Return:
         List of encoded domain/hashes for the bitlinks for this group_guid
     """
-    data = http_get(get_bitlinks_url(group_guid), token)
-    validate_bitlinks_data(data)
+    response = await async_http_get(get_bitlinks_url(group_guid), token)
+    validate_bitlinks_response(response)
     encoded_bitlinks_list = []
-    for link_obj in data['links']:
+    for link_obj in response['links']:
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
         encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
         encoded_bitlinks_list.append(encoded_bitlink)
     return encoded_bitlinks_list
 
-def validate_bitlinks_data(data):
+def validate_bitlinks_response(response):
     """ Validate the Bitly data returned containing bitlinks for a group_guid
     Params:
-        data: JSON data from Bitly containing bitlinks for a group_guid
+        response: JSON data from Bitly containing bitlinks for a group_guid
     """
-    if 'links' not in data:
+    if 'links' not in response:
         raise ValueError('"links" field not in data retrieved from Bitly')
-    for link_obj in data['links']:
+    for link_obj in response['links']:
         if 'link' not in link_obj:
             log('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
             raise ValueError('"link" field not in data retrieved from Bitly')
         if not isinstance(link_obj['link'], str):
             raise ValueError('"link" field data type from Bitly is incorrect')
 
-def get_country_counts(token, encoded_bitlinks_list):
-    """ Package country click metrics per Bitlink
+async def async_get_country_counts(token, encoded_bitlinks_list):
+    """ Async get country click metrics, per bitlink, per month
     Params:
         token: Access token for Bitly API request
         encoded_bitlinks_list: List of encoded bitlinks to get metrics for
@@ -239,23 +245,23 @@ def get_country_counts(token, encoded_bitlinks_list):
     bitlinks_data = {}
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
-        data = http_get(get_country_url(encoded_bitlink), token, params=payload)
-        validate_country_data(data)
-        for country_obj in data['metrics']:
+        response = await async_http_get(get_country_url(encoded_bitlink), token, params=payload)
+        validate_country_response(response)
+        for country_obj in response['metrics']:
             country_str = country_obj['value']
             country_clicks = country_obj['clicks']
             bitlinks_data[encoded_bitlink] = {}
             bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
     return bitlinks_data
 
-def validate_country_data(data):
+def validate_country_response(response):
     """ Validate the Bitly data returned containing metrics for a bitlink
     Params:
-        data: JSON data from Bitly containing bitlinks for a group_guid
+        response: JSON data from Bitly containing bitlinks for a group_guid
     """
-    if 'metrics' not in data:
+    if 'metrics' not in response:
         raise ValueError('"metrics" field not in data retrieved from Bitly')
-    for country_obj in data['metrics']:
+    for country_obj in response['metrics']:
         if 'value' not in country_obj:
             log('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"value" field not in data retrieved from Bitly')
@@ -263,11 +269,12 @@ def validate_country_data(data):
             log('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
-def http_get(url, token, params={}):
-    """ HTTP get wrapper that handles the authorization header for the Bitly API
+@tornado.gen.coroutine
+def async_http_get(base_url, token, params={}):
+    """ Non-blocking HTTP get for use with an Authorization: Bearer access token
     Note: Expects JSON response from {url}
     Params:
-        url: URL to HTTP Get data from
+        base_url: URL to HTTP Get data from (no query parameters)
         token: Access token for Bitly API request
         params: [optional] query parameters for the HTTP request
     Throws:
@@ -275,10 +282,22 @@ def http_get(url, token, params={}):
     Return:
         JSON data resulting from the HTTP get
     """
-    headers = {"Authorization": "Bearer " + token}
-    response = requests.get(url=url, headers=headers, params=params)
-    response.raise_for_status()
-    return response.json()
+    client = tornado.httpclient.AsyncHTTPClient()
+    headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
+    url = tornado.httputil.url_concat(base_url, params)
+    request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
+
+    response = yield client.fetch(request)
+    json_body = {}
+    try:
+        json_body = json.loads(response.body)
+    except Exception as e:
+        # In general don't catch generic, but functionally it doesn't matter
+        # why the JSON couldn't parse, just that it couldn't parse. Would not
+        # do in production
+        log("Could not parse data from Bitly (expected JSON): " + str(e))
+
+    raise tornado.gen.Return(json_body)
 
 def get_user_url():
     """ Return Bitly API endpoint for getting the group_guid
