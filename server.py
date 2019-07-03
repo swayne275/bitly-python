@@ -43,8 +43,8 @@ class MainHandler(tornado.web.RequestHandler):
 class ClickHandler(tornado.web.RequestHandler):
     def get(self):
         try:
-            token_valid, token = get_access_token(self)
-            if not token_valid:
+            token = get_access_token(self)
+            if not token:
                 send_httperr(self, bad_token_err, "Invalid access token provided",
                     status=401)
                 return
@@ -76,16 +76,15 @@ def get_access_token(request_handler):
     Params:
         request_handler: Tornado API endpoint handler implementing this
     Return:
-        First, Bool: True if success, else false
-        Second, Str: Access token if First == True, else None
+        String access token if 'valid', else None
     """
     token = request_handler.request.headers.get('access_token')
     if not isinstance(token, str):
-        return False, None
+        return None
     if not token:
         # strings are "falsy"
-        return False, None
-    return True, token
+        return None
+    return token
     
 
 def get_group_guid(token):
