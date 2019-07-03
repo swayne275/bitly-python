@@ -295,7 +295,7 @@ def async_http_get(base_url, token, params={}):
         # In general don't catch generic, but functionally it doesn't matter
         # why the JSON couldn't parse, just that it couldn't parse. Would not
         # do in production
-        log("Could not parse json: " + str(e))
+        log("Could not parse data from Bitly (expected JSON): " + str(e))
 
     raise tornado.gen.Return(json_body)
 
