@@ -5,9 +5,8 @@ import sys                    # for signal handling
 import json                   # for JSON manipulation
 import tornado.ioloop         # for web server hosting
 import tornado.web            # for web server hosting
-import tornado.gen            # for making web server async
-import tornado.httpclient
-import requests               # for http requests
+import tornado.gen            # for building an async API in tornado
+import tornado.httpclient     # for async http client
 import urllib.parse           # for bitly url encoding
 
 ##### Define port for web server to listen on #####
@@ -20,9 +19,9 @@ bitly_api_http_err   = 3 # Bitly API gave an HTTP error
 bad_token_err        = 4 # User provided an invalid access_token
 
 ##### Define convenience variables #####
-html_prefix_end = '://'
-num_days = 30     # number of days to average over for this problem
-api_version = "v0.1"
+html_prefix_end = '://' # delimiter between url scheme and domain
+num_days = 30           # number of days to average over for this problem
+api_version = "v1"      # api version served by this file
 
 class MainHandler(tornado.web.RequestHandler):
     """ Handle gets for '/' by returning basic API data
@@ -44,7 +43,7 @@ class MainHandler(tornado.web.RequestHandler):
         override_write_error(self, status_code)
 
 class ClickHandler(tornado.web.RequestHandler):
-    """ Handle gets for the main endpoint !!! SW fill in and return bitlinks country metrics
+    """ Handle "/api/<ver>/metrics" and return bitlinks country metrics
     """
     @tornado.gen.coroutine
     def get(self):
@@ -161,7 +160,7 @@ def make_app():
     """
     return tornado.web.Application([
         ("/", MainHandler),
-        ("/api/%s/get-clicks/?" % api_version, ClickHandler),
+        ("/api/%s/metrics/?" % api_version, ClickHandler),
         ("/.*", GenericHandler)
     ])
 
@@ -230,7 +229,7 @@ def validate_bitlinks_data(data):
             raise ValueError('"link" field data type from Bitly is incorrect')
 
 async def async_get_country_counts(token, encoded_bitlinks_list):
-    """ Async get country click metrics per bitlink
+    """ Async get country click metrics, per bitlink, per month
     Params:
         token: Access token for Bitly API request
         encoded_bitlinks_list: List of encoded bitlinks to get metrics for
