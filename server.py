@@ -21,7 +21,6 @@ bitly_api_http_err   = 4 # Bitly API gave an HTTP error
 bad_token_err        = 5 # User provided an invalid access_token
 
 access_token = '' # store given access token
-user_url = 'https://api-ssl.bitly.com/v4/user'
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
 encoded_bitlinks_list = []
@@ -89,7 +88,7 @@ def get_group_guid():
     Return:
         [string] default_group_guid for the provided access token
     """
-    data = http_get(user_url)
+    data = http_get(get_user_url())
     if 'default_group_guid' not in data:
         log("Missing guid data from Bitly: " + json.dumps(data))
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
@@ -231,6 +230,11 @@ def server_init():
     """
     log("Initializing Bitly Backend Test API web server")
     signal.signal(signal.SIGINT, signal_handler)
+
+def get_user_url():
+    """ Return Bitly API endpoint for getting the group_guid
+    """
+    return 'https://api-ssl.bitly.com/v4/user'
 
 def get_bitlinks_url(group_guid):
     """ Return Bitly API endpoint for accessing group_guid bitlinks
