@@ -26,15 +26,8 @@ num_days = 30     # number of days to average over for this problem
 api_version = "v0.1"
 
 class MainHandler(tornado.web.RequestHandler):
-    def write_error(self, status_code, **kwargs):
-        self.set_header('Content-Type', 'application/json')
-        self.finish(json.dumps({
-            'error': {
-                'code': status_code,
-                'message': self._reason,
-            }
-        }))
-
+    """ Handle / by returning basic API data
+    """
     def get(self):
         try:
             response = {}
@@ -44,7 +37,6 @@ class MainHandler(tornado.web.RequestHandler):
         except Exception as e:
             log('Error: could not serve /: ' + str(e))
 
-class ClickHandler(tornado.web.RequestHandler):
     def write_error(self, status_code, **kwargs):
         self.set_header('Content-Type', 'application/json')
         self.finish(json.dumps({
@@ -54,6 +46,9 @@ class ClickHandler(tornado.web.RequestHandler):
             }
         }))
 
+class ClickHandler(tornado.web.RequestHandler):
+    """ Handle the main endpoint !!! SW fill in and return bitlinks country metrics
+    """
     def get(self):
         try:
             token = get_access_token(self)
@@ -76,7 +71,18 @@ class ClickHandler(tornado.web.RequestHandler):
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
+    def write_error(self, status_code, **kwargs):
+        self.set_header('Content-Type', 'application/json')
+        self.finish(json.dumps({
+            'error': {
+                'code': status_code,
+                'message': self._reason,
+            }
+        }))
+
 class GenericHandler(tornado.web.RequestHandler):
+    """ Handle all unspecified endpoints by returning a pretty JSON error
+    """
     def write_error(self, status_code, **kwargs):
         self.set_header('Content-Type', 'application/json')
         self.finish(json.dumps({
