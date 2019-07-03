@@ -13,7 +13,9 @@ import urllib.parse
 ##### Define basic error types #####
 generic_internal_err = 1 # generic internal error
 unimplemented_err    = 2 # route or method was not implemented
-bitly_api_err        = 3 # Bitly data was not formatted as expected
+bitly_api_data_err   = 3 # Bitly data was not formatted as expected
+bitly_api_http_err   = 4 # Bitly API gave an HTTP error
+bad_token_err        = 5 # User provided an invalid access_token
 
 access_token = "" # store given access token
 user_url = 'https://api-ssl.bitly.com/v4/user'
@@ -41,14 +43,21 @@ class MainHandler(tornado.web.RequestHandler):
 class ClickHandler(tornado.web.RequestHandler):
     def get(self):
         try:
+            token_valid, token_err = set_access_token(self)
+            if not token_valid:
+                send_httperr(self, bad_token_err, token_err, status=401)
+                return
+            set_group_guid()
             populate_bitlinks()
             populate_country_counts()
             response = {}
-            response['bitlinks'] = encoded_bitlinks_list
             response['metrics'] = bitlinks_data
             send_success(self, response)
-        except ValueError as ve:
-            send_httperr(self, bitly_api_err, str(ve))
+        except ValueError as value_error:
+            send_httperr(self, bitly_api_data_err, str(value_error))
+        except requests.HTTPError as http_err:
+            log("Bitly API raised an HTTP error: " + str(http_err))
+            send_httperr(self, bitly_api_http_err, str(http_err))
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
@@ -60,6 +69,18 @@ class GenericHandler(tornado.web.RequestHandler):
 
     def post(self):
         handle_unimplemented(self)
+
+def set_access_token(request_handler):
+    global access_token
+    token = request_handler.request.headers.get('access_token')
+    if not isinstance(token, str):
+        return False, 'Invalid access_token type provided'
+    if not token:
+        # strings are "falsy"
+        return False, 'Invalid access_token provided'
+    access_token = token
+    return True, None
+    
 
 def get_group_guid():
     """ Get the 'default_group_guid' using the provided access token
@@ -134,12 +155,15 @@ def http_get(url, params={}):
     Params:
         url: URL to HTTP Get data from
         params: [optional] query parameters for the HTTP request
+    Throws:
+        requests.HTTPError if Bitly response status is not 200
     Return:
         JSON data resulting from the HTTP get
     """
     headers = {"Authorization": "Bearer " + access_token}
-    r = requests.get(url=url, headers=headers, params=params)
-    return r.json()
+    response = requests.get(url=url, headers=headers, params=params)
+    response.raise_for_status()
+    return response.json()
 
 def handle_unimplemented(request_handler):
     """ Return pretty JSON for unimplemented routes and methods
@@ -204,15 +228,8 @@ def server_init():
     log("Initializing Bitly Backend Test API web server")
     signal.signal(signal.SIGINT, signal_handler)
 
-def set_access_token(token):
-    """ Set the access token for this run of the program
-    !!! SW will remove when ported to take as part of request
-    !!! SW turn into mini access token validator
-    """
-    global access_token
-    access_token = token
-
 def set_group_guid():
+    # !!! SW validate that not forbidden/http error from API
     """ Set the group_guid for this request
     """
     global group_guid
@@ -255,9 +272,7 @@ def make_app():
 if __name__ == "__main__":
     try:
         log("Starting Bitly backend test API, version %s" % api_version)
-        set_access_token('cb1da22a1c837ba3f8cd54781461397472cce43e')
         # verify can get group_guid and type
-        set_group_guid()
         server_init()
         # Start the http webserver
         app = make_app()
