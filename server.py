@@ -20,7 +20,6 @@ bitly_api_data_err   = 3 # Bitly data was not formatted as expected
 bitly_api_http_err   = 4 # Bitly API gave an HTTP error
 bad_token_err        = 5 # User provided an invalid access_token
 
-access_token = '' # store given access token
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
 encoded_bitlinks_list = []
@@ -44,13 +43,14 @@ class MainHandler(tornado.web.RequestHandler):
 class ClickHandler(tornado.web.RequestHandler):
     def get(self):
         try:
-            token_valid, token_err = set_access_token(self)
+            token_valid, token = get_access_token(self)
             if not token_valid:
-                send_httperr(self, bad_token_err, token_err, status=401)
+                send_httperr(self, bad_token_err, "Invalid access token provided",
+                    status=401)
                 return
-            group_guid = get_group_guid()
-            populate_bitlinks(group_guid)
-            populate_country_counts()
+            group_guid = get_group_guid(token)
+            populate_bitlinks(token, group_guid)
+            populate_country_counts(token)
             response = {}
             response['metrics'] = bitlinks_data
             send_success(self, response)
@@ -71,24 +71,31 @@ class GenericHandler(tornado.web.RequestHandler):
     def post(self):
         handle_unimplemented(self)
 
-def set_access_token(request_handler):
-    global access_token
+def get_access_token(request_handler):
+    """ Get the access token from the client's request
+    Params:
+        request_handler: Tornado API endpoint handler implementing this
+    Return:
+        First, Bool: True if success, else false
+        Second, Str: Access token if First == True, else None
+    """
     token = request_handler.request.headers.get('access_token')
     if not isinstance(token, str):
-        return False, 'Invalid access_token type provided'
+        return False, None
     if not token:
         # strings are "falsy"
-        return False, 'Invalid access_token provided'
-    access_token = token
-    return True, None
+        return False, None
+    return True, token
     
 
-def get_group_guid():
+def get_group_guid(token):
     """ Get the 'default_group_guid' using the provided access token
+    Params:
+        token: Access token for Bitly API request
     Return:
         [string] default_group_guid for the provided access token
     """
-    data = http_get(get_user_url())
+    data = http_get(get_user_url(), token)
     if 'default_group_guid' not in data:
         log("Missing guid data from Bitly: " + json.dumps(data))
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
@@ -97,12 +104,14 @@ def get_group_guid():
         raise ValueError('"default_group_guid" from Bitly has invalid type')
     return data['default_group_guid']
 
-def populate_country_counts():
+def populate_country_counts(token):
     """ Package country click metrics per Bitlink
+    Params:
+        token: Access token for Bitly API request
     """
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
-        data = http_get(get_country_url(encoded_bitlink), params=payload)
+        data = http_get(get_country_url(encoded_bitlink), token, params=payload)
         validate_country_data(data)
         for country_obj in data['metrics']:
             country_str = country_obj['value']
@@ -125,12 +134,13 @@ def validate_country_data(data):
             log('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
-def populate_bitlinks(group_guid):
+def populate_bitlinks(token, group_guid):
     """ Get and store all bitlinks for a provided group_guid
     Params:
+        token: Access token for Bitly API request
         group_guid: group_guid to get the bitlinks for
     """
-    data = http_get(get_bitlinks_url(group_guid))
+    data = http_get(get_bitlinks_url(group_guid), token)
     validate_bitlinks_data(data)
     for link_obj in data['links']:
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
@@ -152,18 +162,19 @@ def validate_bitlinks_data(data):
         if not isinstance(link_obj['link'], str):
             raise ValueError('"link" field data type from Bitly is incorrect')
 
-def http_get(url, params={}):
+def http_get(url, token, params={}):
     """ HTTP get wrapper that handles the authorization header for the Bitly API
     Note: Expects JSON response from {url}
     Params:
         url: URL to HTTP Get data from
+        token: Access token for Bitly API request
         params: [optional] query parameters for the HTTP request
     Throws:
         requests.HTTPError if Bitly response status is not 200
     Return:
         JSON data resulting from the HTTP get
     """
-    headers = {"Authorization": "Bearer " + access_token}
+    headers = {"Authorization": "Bearer " + token}
     response = requests.get(url=url, headers=headers, params=params)
     response.raise_for_status()
     return response.json()
