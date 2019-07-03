@@ -46,8 +46,8 @@ class ClickHandler(tornado.web.RequestHandler):
     @tornado.gen.coroutine
     def get(self):
         try:
-            token = bitly.get_access_token(self)
-            if not token:
+            token = self.request.headers.get('access_token')
+            if not token or not isinstance(token, str):
                 send_httperr(self, bad_token_err, "Invalid access token provided",
                     status=401)
                 return
@@ -87,7 +87,7 @@ def override_write_error(request_handler, status_code):
     """ Override the default tornado write_error to return pretty JSON
     Params:
         request_handler: Tornado API endpoint handler implementing this
-        status_code: HTML status code
+        status_code: HTTP status code
     """
     request_handler.set_header('Content-Type', 'application/json')
     request_handler.finish(json.dumps({

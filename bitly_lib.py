@@ -10,21 +10,6 @@ from datetime import datetime # for log message timing
 html_prefix_end = '://' # delimiter between url scheme and domain
 num_days = 30           # number of days to average over for this problem
 
-def get_access_token(request_handler):
-    """ Get the access token from the client's request
-    Params:
-        request_handler: Tornado API endpoint handler implementing this
-    Return:
-        String access token if 'valid', else None
-    """
-    token = request_handler.request.headers.get('access_token')
-    if not isinstance(token, str):
-        return None
-    if not token:
-        # strings are "falsy"
-        return None
-    return token
-
 async def async_get_group_guid(token):
     """ Async get the 'default_group_guid' using the provided access token
     Params:
