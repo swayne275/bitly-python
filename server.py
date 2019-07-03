@@ -21,6 +21,7 @@ html_prefix_end = '://'
 group_guid = 'Bj71ifpGx2i' # !!! SW remove this
 num_days = 30 # number of days for this problem
 encoded_bitlinks_list = []
+bitlinks_data = {}
 
 api_version = "v0.1"
 
@@ -49,10 +50,11 @@ class ClickHandler(tornado.web.RequestHandler):
     def get(self):
         try:
             populate_bitlinks()
+            populate_country_counts()
             response = {}
             response['bitlinks'] = encoded_bitlinks_list
+            response['metrics'] = bitlinks_data
             send_success(self, response)
-            populate_country_counts()
         except Exception as e:
             log("Error: could not handle clicks! " + str(e))
 
@@ -66,9 +68,20 @@ def get_group_guid():
 
 def populate_country_counts():
     for encoded_bitlink in encoded_bitlinks_list:
-        data = http_get(get_country_url(encoded_bitlink))
-        # !!! SW continue here
-        print(json.dumps(data))
+        payload = {'unit': 'month'}
+        data = http_get(get_country_url(encoded_bitlink), params=payload)
+        if 'metrics' not in data:
+            raise ValueError('"metrics" field missing from data returned by Bitly')
+        metrics_data = data['metrics']
+        for country_obj in metrics_data:
+            if 'value' not in country_obj:
+                raise ValueError('"value" missing from Bitly metrics data for: %s' % json.dumps(contry_obj))
+            if 'clicks' not in country_obj:
+                raise ValueError('"clicks" missing from Bitly metrics data for: %s' % json.dumps(country_obj))
+            country_str = country_obj['value']
+            country_clicks = country_obj['clicks']
+            bitlinks_data[encoded_bitlink] = {}
+            bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
 
 def populate_bitlinks():
     data = http_get(get_bitlinks_url())
@@ -81,11 +94,12 @@ def populate_bitlinks():
             raise ValueError('"link" field data type from Bitly is incorrect')
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
         encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
-        encoded_bitlinks_list.append(encoded_bitlink)
+        if encoded_bitlink not in encoded_bitlinks_list:
+            encoded_bitlinks_list.append(encoded_bitlink)
 
-def http_get(url):
+def http_get(url, params={}):
     headers = {"Authorization": "Bearer " + access_token}
-    r = requests.get(url=url, headers=headers)
+    r = requests.get(url=url, headers=headers, params=params)
     data = r.json()
     return data
 
@@ -147,6 +161,8 @@ def get_country_url(bitlink):
     return ('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
 
 def parse_bitlink(bitlink_url):
+    """ Return the domain and hash of the bitlink without the scheme/delimiter
+    """
     prefix_start_pos = bitlink_url.find(html_prefix_end)
     # increment the counter the last char of the '{scheme}://' URL component
     prefix_end_pos = prefix_start_pos + len(html_prefix_end)
