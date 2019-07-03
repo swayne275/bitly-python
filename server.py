@@ -22,7 +22,6 @@ bad_token_err        = 5 # User provided an invalid access_token
 
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
-bitlinks_data = {}
 
 api_version = "v0.1"
 
@@ -49,7 +48,8 @@ class ClickHandler(tornado.web.RequestHandler):
                 return
             group_guid = get_group_guid(token)
             encoded_bitlinks_list = populate_bitlinks(token, group_guid)
-            populate_country_counts(token, encoded_bitlinks_list)
+            bitlinks_data = populate_country_counts(token, encoded_bitlinks_list)
+
             response = {}
             response['metrics'] = bitlinks_data
             send_success(self, response)
@@ -107,7 +107,17 @@ def populate_country_counts(token, encoded_bitlinks_list):
     Params:
         token: Access token for Bitly API request
         encoded_bitlinks_list: List of encoded bitlinks to get metrics for
+    Return:
+        JSON data, organized by bitlink as follows:
+        {
+            "<bitlink1>": {
+                "<country1>": float, <avg # clicks from <country1> over past 30 days>,
+                ...
+            },
+            ...
+        }
     """
+    bitlinks_data = {}
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
         data = http_get(get_country_url(encoded_bitlink), token, params=payload)
@@ -117,6 +127,7 @@ def populate_country_counts(token, encoded_bitlinks_list):
             country_clicks = country_obj['clicks']
             bitlinks_data[encoded_bitlink] = {}
             bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
+    return bitlinks_data
 
 def validate_country_data(data):
     """ Validate the Bitly data returned containing metrics for a bitlink
