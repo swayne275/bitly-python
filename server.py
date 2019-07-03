@@ -135,7 +135,7 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
     request_handler.finish(http_err)
 
 def log(log_msg):
-    """ Standardized way to log a message (read: print to console)
+    """ Standardized way to log a message (read: output to console)
     Params:
         log_msg: Message to log, ideally human-readable
     """
@@ -326,11 +326,11 @@ def validate_country_data(data):
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
 @tornado.gen.coroutine
-def async_http_get(url, token, params={}):
+def async_http_get(base_url, token, params={}):
     """ HTTP get wrapper that handles the authorization header for the Bitly API
     Note: Expects JSON response from {url}
     Params:
-        url: URL to HTTP Get data from
+        base_url: URL to HTTP Get data from (no query parameters)
         token: Access token for Bitly API request
         params: [optional] query parameters for the HTTP request
     Throws:
@@ -340,8 +340,9 @@ def async_http_get(url, token, params={}):
     """
     client = tornado.httpclient.AsyncHTTPClient()
     headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
-    method = 'GET'
-    request = tornado.httpclient.HTTPRequest(url, method, headers)
+    url = tornado.httputil.url_concat(base_url, params)
+    request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
+
     response = yield client.fetch(request)
     json_body = json.loads(response.body)
     raise tornado.gen.Return(json_body)
