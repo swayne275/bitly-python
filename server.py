@@ -22,8 +22,6 @@ bad_token_err        = 5 # User provided an invalid access_token
 
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
-encoded_bitlinks_list = []
-bitlinks_data = {}
 
 api_version = "v0.1"
 
@@ -49,8 +47,9 @@ class ClickHandler(tornado.web.RequestHandler):
                     status=401)
                 return
             group_guid = get_group_guid(token)
-            populate_bitlinks(token, group_guid)
-            populate_country_counts(token)
+            encoded_bitlinks_list = populate_bitlinks(token, group_guid)
+            bitlinks_data = populate_country_counts(token, encoded_bitlinks_list)
+
             response = {}
             response['metrics'] = bitlinks_data
             send_success(self, response)
@@ -85,7 +84,6 @@ def get_access_token(request_handler):
         # strings are "falsy"
         return None
     return token
-    
 
 def get_group_guid(token):
     """ Get the 'default_group_guid' using the provided access token
@@ -103,11 +101,22 @@ def get_group_guid(token):
         raise ValueError('"default_group_guid" from Bitly has invalid type')
     return data['default_group_guid']
 
-def populate_country_counts(token):
+def populate_country_counts(token, encoded_bitlinks_list):
     """ Package country click metrics per Bitlink
     Params:
         token: Access token for Bitly API request
+        encoded_bitlinks_list: List of encoded bitlinks to get metrics for
+    Return:
+        JSON data, organized by bitlink as follows:
+        {
+            "<bitlink1>": {
+                "<country1>": float, <avg # clicks from <country1> over past 30 days>,
+                ...
+            },
+            ...
+        }
     """
+    bitlinks_data = {}
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
         data = http_get(get_country_url(encoded_bitlink), token, params=payload)
@@ -117,6 +126,7 @@ def populate_country_counts(token):
             country_clicks = country_obj['clicks']
             bitlinks_data[encoded_bitlink] = {}
             bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
+    return bitlinks_data
 
 def validate_country_data(data):
     """ Validate the Bitly data returned containing metrics for a bitlink
@@ -138,14 +148,17 @@ def populate_bitlinks(token, group_guid):
     Params:
         token: Access token for Bitly API request
         group_guid: group_guid to get the bitlinks for
+    Return:
+        List of encoded domain/hashes for the bitlinks for this group_guid
     """
     data = http_get(get_bitlinks_url(group_guid), token)
     validate_bitlinks_data(data)
+    encoded_bitlinks_list = []
     for link_obj in data['links']:
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
         encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
-        if encoded_bitlink not in encoded_bitlinks_list:
-            encoded_bitlinks_list.append(encoded_bitlink)
+        encoded_bitlinks_list.append(encoded_bitlink)
+    return encoded_bitlinks_list
 
 def validate_bitlinks_data(data):
     """ Validate the Bitly data returned containing bitlinks for a group_guid
