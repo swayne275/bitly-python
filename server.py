@@ -15,10 +15,9 @@ web_server_port = 8080
 
 ##### Define basic error types #####
 generic_internal_err = 1 # generic internal error
-unimplemented_err    = 2 # route or method was not implemented
-bitly_api_data_err   = 3 # Bitly data was not formatted as expected
-bitly_api_http_err   = 4 # Bitly API gave an HTTP error
-bad_token_err        = 5 # User provided an invalid access_token
+bitly_api_data_err   = 2 # Bitly data was not formatted as expected
+bitly_api_http_err   = 3 # Bitly API gave an HTTP error
+bad_token_err        = 4 # User provided an invalid access_token
 
 html_prefix_end = '://'
 num_days = 30     # number of days to average over for this problem
