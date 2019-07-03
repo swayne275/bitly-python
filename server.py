@@ -68,9 +68,11 @@ def get_group_guid():
     """
     data = http_get(user_url)
     if 'default_group_guid' not in data:
-        raise ValueError('default_group_guid not retrieved from Bitly')
+        log("Missing guid data from Bitly: " + json.dumps(data))
+        raise ValueError('"default_group_guid" not in data retrieved from Bitly')
     if not isinstance(data['default_group_guid'], str):
-        raise ValueError('default_group_guid type is invalid from Bitly')
+        log("Invalid guid data type from Bitly: " + json.dumps(data))
+        raise ValueError('"default_group_guid" from Bitly has invalid type')
     return data['default_group_guid']
 
 def populate_country_counts():
@@ -92,7 +94,7 @@ def validate_country_data(data):
         data: JSON data from Bitly containing bitlinks for a group_guid
     """
     if 'metrics' not in data:
-        raise ValueError('"metrics" field missing from data returned by Bitly')
+        raise ValueError('"metrics" field not in data retrieved from Bitly')
     for country_obj in data['metrics']:
         if 'value' not in country_obj:
             log('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
