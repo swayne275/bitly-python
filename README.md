@@ -84,9 +84,9 @@ of the machine this is running on, and `port` is the port the API is set to
 listen on. If you are running this locally with the default port, it becomes
 `http://localhost:8080`.
 
-There are two implemented endpoints:
-`/`                      - [Base]    Get basic data about the API </br>
-`/api/[version]/metrics` - [Metrics] Get the averaged country click metrics
+There are two implemented endpoints:</br?>
+`/`                      - [Base]    Get basic data about the API</br>
+`/api/[version]/metrics` - [Metrics] Get the averaged country click metrics</br>
 
 If you are using this version of the API, `version` is `v1`.
 
