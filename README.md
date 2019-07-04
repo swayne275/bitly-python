@@ -160,7 +160,7 @@ Custom errors in the API will be returned in the form:
     "uri": string, [the API uri that was hit when this occured, e.g. "/api/v1/metrics"]
 }
 ```
-The `errortype`s are defined as follows:
+`errortype` is defined as follows:
 <pre>
 `generic_internal_err = 1` - some otherwise-unclassified internal error occured
 `bitly_api_data_err = 2`   - data returned from Bitly was formatted incorrectly
