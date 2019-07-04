@@ -47,10 +47,19 @@ at the top of `server.py`. I am happy to discuss any design decisions that
 I did not cover in this summary
 
 # Installation
+1. Ensure Python 3.6.x+ is installed and in your path
+1. Ensure `pip` is installed for Python 3
+1. Put this project in your directory of choice
+1. `cd` to the directory where this project is located
+1. [optional] `pip install -U virtualenv` (install python virtual environment)
+1. [optional] `virtualenv` (create the virtual environment)
+1. [optional] `. venv/bin/activate` (activate the virtual environment)
+1. `pip3 install tornado` (install tornado)
+1. `pip3 install urllib` (install urllib)
 
 # Running the API
 After all dependencies are configured (inlcuding Python 3.6.x+), cd to the
-`/src/` directory and run `python3 server.py`.
+`/src/` directory of this project and run `python3 server.py`.
 
 # Using the API
 There is a single main endpoint, located at `{ip}:{port}/api/{version}/metrics`
