@@ -13,7 +13,7 @@ in the user's default group received from each country over the last 30 days.
 I chose Python and Tornado because I have already written a reasonably
 performant API using these technologies for my previous work/projects,
 and I was limited on how much time I could dedicate to this project. That
-previous work, however, did not interact with another REST API, and were
+previous work, however, did not interact with another REST API, and was
 mostly synchronous. I also knew that Tornado could host static assets in case
 I ever wanted to build a simple GUI to interact with the Bitly API. Tornado
 is also built to be async, which I knew I might want for API performance with
@@ -27,9 +27,9 @@ that multiple clients could use it simultaneously without serially
 waiting on Bitly API requests to complete.
 
 I wanted clients to have a good, fairly-unified experience, which guided
-a few of my decisions. I overrode the default `write_error` method so that
-unimplemented methods/routes would return standardized JSON instead of
-HTML errors. I also wanted the API to be easily accessible by an
+a few of my decisions. I overrode the default `write_error` method in Tornado
+so that unimplemented methods/routes would return standardized JSON instead
+of HTML errors. I also wanted the API to be easily accessible by an
 automated system, so I standardized codes corresponding to various error
 types. I implemented a versioning system for future expandability, and
 I separated the Bitly API calls into their own library so that they could
@@ -45,9 +45,9 @@ that I use are `tornado` and `urllib`, so the setup process should be
 fairly straightforward. I chose port 8080 somewhat arbitrarily, but mostly
 used it over port 80 so that special permissions would not be required to
 run this API. That is easily changed by modifying a clearly marked variable
-at the top of `server.py`. I asked Maria if this should be easily configurable
-when starting the server and did not get a response, so I left it as a variable
-in the code.
+at the top of `server.py`. I asked Maria if the port should be easily
+configurable when starting the server and did not get a response, so I left
+it as a well-documented variable in the code.
 
 I was originally planning to generate a `requirements.txt`, but with only two
 dependencies that didn't seem necessary (but would be a good future extension).
@@ -68,6 +68,10 @@ I am happy to discuss any design decisions that I did not cover.
 After all dependencies are configured (inlcuding Python 3.6.x+), cd to the
 `/src/` directory of this project and run `python3 server.py`.
 
+Note that if you used a `venv` to install dependencies locally, that must be
+active every time you run the server (unless you had the dependencies already
+installed globally).
+
 # Using the API
 ## Overview
 There is a single main endpoint that will return the averaged country click
@@ -78,10 +82,10 @@ return a JSON body, as discussed below.
 The base url for this API is `http://[ip]:[port]`, where `ip` is the ip address
 of the machine this is running on, and `port` is the port the API is set to
 listen on. If you are running this locally with the default port, it becomes
-`localhost:8080`.
+`http://localhost:8080`.
 
 There are two implemented endpoints:
-`/`                      - [Base]    Get basic data about the API
+`/`                      - [Base]    Get basic data about the API </br>
 `/api/[version]/metrics` - [Metrics] Get the averaged country click metrics
 
 If you are using this version of the API, `version` is `v1`.
