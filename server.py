@@ -3,6 +3,10 @@
 # Web server to host the API that meets the requirements of the
 # Bitly backend coding challenge
 #
+# Once you have the requirements installed for Python 3
+# (tornado and urllib), cd to this directory and run
+# "python3 server.py" to start the webserver
+#
 # Stephen Wayne
 
 from datetime import datetime # for log message timing
