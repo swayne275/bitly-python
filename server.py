@@ -1,4 +1,10 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
+
+# Web server to host the API that meets the requirements of the
+# Bitly backend coding challenge
+#
+# Stephen Wayne
+
 from datetime import datetime # for log message timing
 import signal                 # for signal handling
 import sys                    # for signal handling

@@ -1,4 +1,8 @@
-#!/usr/bin/python3
+# Library for interacting with the relevant Bitly API endpoints
+# as per the coding challenge specifications
+#
+# Stephen Wayne
+
 import json                   # for json manipulation
 import tornado.gen            # for async http gets to Bitly API
 import tornado.httpclient     # for async http client
