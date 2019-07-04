@@ -73,7 +73,7 @@ To properly authenticate with the Bitly API, all of your `/api/{version}/metrics
 requests must have a header field, `access_token`, where you provide the
 `access_token` associated with your Bitly account. The response will be of the
 form:
-`
+```
 {
     "{bitlink1}": {
         "{country1}": float, {avg # clicks from {country1} over past 30 days},
@@ -81,7 +81,7 @@ form:
             },
             ...
         }
-`
+```
 
 
 # Testing
