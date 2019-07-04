@@ -61,9 +61,8 @@ class ClickHandler(tornado.web.RequestHandler):
                 send_httperr(self, bad_token_err, "Invalid access token provided",
                     status=401)
                 return
-            group_guid = yield bitly.async_get_group_guid(token)
-            encoded_bitlinks_list = yield bitly.async_get_bitlinks(token, group_guid)
-            bitlinks_data = yield bitly.async_get_country_counts(token, encoded_bitlinks_list)
+
+            bitlinks_data = yield bitly.async_get_metrics(token)
 
             response = {}
             response['metrics'] = bitlinks_data

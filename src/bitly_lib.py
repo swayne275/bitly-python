@@ -14,7 +14,14 @@ from datetime import datetime # for log message timing
 html_prefix_end = '://' # delimiter between url scheme and domain
 num_days = 30           # number of days to average over for this problem
 
-async def async_get_group_guid(token):
+async def async_get_metrics(token):
+    group_guid = await async_get_group_guid(token)
+    encoded_bitlinks_list = await async_get_bitlinks(token, group_guid)
+    bitlinks_data = await async_get_country_counts(token, encoded_bitlinks_list)
+    return bitlinks_data
+
+@tornado.gen.coroutine
+def async_get_group_guid(token):
     """ Async get the 'default_group_guid' using the provided access token
     Params:
         token: Access token for Bitly API request
@@ -24,16 +31,17 @@ async def async_get_group_guid(token):
     Return:
         [string] default_group_guid for the provided access token
     """
-    response = await async_http_get(get_user_url(), token)
+    response = yield async_http_get(get_user_url(), token)
     if 'default_group_guid' not in response:
         log("Missing guid data from Bitly: " + json.dumps(response))
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
     if not isinstance(response['default_group_guid'], str):
         log("Invalid guid data type from Bitly: " + json.dumps(response))
         raise TypeError('"default_group_guid" from Bitly has invalid type')
-    return response['default_group_guid']
+    raise tornado.gen.Return(response['default_group_guid'])
 
-async def async_get_bitlinks(token, group_guid):
+@tornado.gen.coroutine
+def async_get_bitlinks(token, group_guid):
     """ Async get and store all bitlinks for a provided group_guid
     Params:
         token: Access token for Bitly API request
@@ -41,14 +49,14 @@ async def async_get_bitlinks(token, group_guid):
     Return:
         List of encoded domain/hashes for the bitlinks for this group_guid
     """
-    response = await async_http_get(get_bitlinks_url(group_guid), token)
+    response = yield async_http_get(get_bitlinks_url(group_guid), token)
     validate_bitlinks_response(response)
     encoded_bitlinks_list = []
     for link_obj in response['links']:
         bitlink_domain_hash = parse_bitlink(link_obj['link'])
         encoded_bitlink = urllib.parse.quote(bitlink_domain_hash)
         encoded_bitlinks_list.append(encoded_bitlink)
-    return encoded_bitlinks_list
+    raise tornado.gen.Return(encoded_bitlinks_list)
 
 def validate_bitlinks_response(response):
     """ Validate the Bitly data returned containing bitlinks for a group_guid
@@ -67,7 +75,8 @@ def validate_bitlinks_response(response):
         if not isinstance(link_obj['link'], str):
             raise TypeError('"link" field data type from Bitly is incorrect')
 
-async def async_get_country_counts(token, encoded_bitlinks_list):
+@tornado.gen.coroutine
+def async_get_country_counts(token, encoded_bitlinks_list):
     """ Async get country click metrics, per bitlink, per month
     Params:
         token: Access token for Bitly API request
@@ -85,14 +94,14 @@ async def async_get_country_counts(token, encoded_bitlinks_list):
     bitlinks_data = {}
     for encoded_bitlink in encoded_bitlinks_list:
         payload = {'unit': 'month'}
-        response = await async_http_get(get_country_url(encoded_bitlink), token, params=payload)
+        response = yield async_http_get(get_country_url(encoded_bitlink), token, params=payload)
         validate_country_response(response)
         for country_obj in response['metrics']:
             country_str = country_obj['value']
             country_clicks = country_obj['clicks']
             bitlinks_data[encoded_bitlink] = {}
             bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
-    return bitlinks_data
+    raise tornado.gen.Return(bitlinks_data)
 
 def validate_country_response(response):
     """ Validate the Bitly data returned containing metrics for a bitlink
