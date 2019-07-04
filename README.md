@@ -78,9 +78,8 @@ form:
     "{bitlink1}": {
         "{country1}": float, {avg # clicks from {country1} over past 30 days},
         ...
-        },
+    },
     ...
-    }
 }
 ```
 
