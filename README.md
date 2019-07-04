@@ -125,7 +125,7 @@ from `country` over the past 30 days.
 
 ### Base Endpoint
 You must do an HTTP `GET` to `/`, and no parameters are required. A cURL example
-of this is as follows:
+of this is as follows:</br>
 `curl -X GET http://localhost:8080/`
 
 The endpoint will return JSON as follows:
@@ -161,10 +161,12 @@ Custom errors in the API will be returned in the form:
 }
 ```
 The `errortype`s are defined as follows:
+<pre>
 `generic_internal_err = 1` - some otherwise-unclassified internal error occured
 `bitly_api_data_err = 2`   - data returned from Bitly was formatted incorrectly
 `bitly_api_http_err = 3`   - a non-200 HTTP status code was sent from the Bitly API
 `bad_token_err = 4`        - the client provided an invalid access_token with their request
+</pre>
 
 If the `errortype` is `3`, the `message` field will describe which HTTP status code was received.
 
