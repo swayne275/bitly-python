@@ -40,17 +40,17 @@ put the extra time/effort into this project instead.
 
 I developed the project in a Linux VM (where I do most of my personal dev
 work), although I natively run MacOS. I used a Python virtual environment
-to separate dependencies for this project. The only external dependencies
-that I use are `tornado` and `urllib`, so the setup process should be
-fairly straightforward. I chose port 8080 somewhat arbitrarily, but mostly
+to separate dependencies for this project. The only external dependency
+that I used is `tornado`, so the setup process should be fairly
+straightforward. I chose port 8080 somewhat arbitrarily, but mostly
 used it over port 80 so that special permissions would not be required to
 run this API. That is easily changed by modifying a clearly marked variable
 at the top of `server.py`. I asked Maria if the port should be easily
 configurable when starting the server and did not get a response, so I left
 it as a well-documented variable in the code.
 
-I was originally planning to generate a `requirements.txt`, but with only two
-dependencies that didn't seem necessary (but would be a good future extension).
+I was originally planning to generate a `requirements.txt`, but with only one
+dependency that didn't seem necessary (but would be a good future extension).
 I am happy to discuss any design decisions that I did not cover.
 
 # Installation
@@ -59,10 +59,12 @@ I am happy to discuss any design decisions that I did not cover.
 1. Put this project in your directory of choice
 1. `cd` to the directory where this project is located
 1. [optional] `pip install -U virtualenv` (install python virtual environment)
-1. [optional] `virtualenv` (create the virtual environment)
+1. [optional] `virtualenv venv` (create the virtual environment)
 1. [optional] `. venv/bin/activate` (activate the virtual environment)
 1. `pip3 install tornado` (install tornado)
-1. `pip3 install urllib` (install urllib)
+
+Note: If you are having a permissions issue installing Tornado that suggests
+using the `--user` flag, use that flag.
 
 # Running the API
 After all dependencies are configured (inlcuding Python 3.6.x+), cd to the
