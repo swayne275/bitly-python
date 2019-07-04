@@ -24,7 +24,15 @@ with the Bitly API, but later transitioned to use Tornado's AsyncHTTPClient.
 Since this project is inherently IO bound (most of the time is spent
 waiting on Bitly's API) it made sense to build this as an async API so
 that multiple clients could use it simultaneously without serially
-waiting on Bitly API requests to complete.
+waiting on Bitly API requests to complete. I originally wrote some of the
+`bitly_lib` functions as `async`, but it resulted in me sequentially calling
+three library functions in the `metrics` route handler. I moved to using
+tornado generators on these functions and built a single "summary" function
+into `bitly_lib` so that the route handler would only need to call one external
+library function. Presumably whichever engineer is reading over `server.py`
+doesn't need to know the specifics of how we get the data from the Bitly API,
+and including that logic in `server.py` adds additional complexity that could
+make future `server.py` enhancement/maintenance more difficult.
 
 I wanted clients to have a good, fairly-unified experience, which guided
 a few of my decisions. I overrode the default `write_error` method in Tornado
