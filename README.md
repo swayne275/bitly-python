@@ -12,10 +12,12 @@ in the user's default group received from each country over the last 30 days.
 # Design Decisions
 I chose Python and Tornado because I have already written a reasonably
 performant API using these technologies for my previous work/projects,
-and I was limited on how much time I could dedicate to this project. Those
-APIs, however, did not interact with another REST API, and were mostly
-synchronous. I also knew that Tornado could host static assets in case
-I ever wanted to build a simple GUI to interact with the Bitly API.
+and I was limited on how much time I could dedicate to this project. That
+previous work, however, did not interact with another REST API, and were
+mostly synchronous. I also knew that Tornado could host static assets in case
+I ever wanted to build a simple GUI to interact with the Bitly API. Tornado
+is also built to be async, which I knew I might want for API performance with
+simultaneous requests.
 
 I originally used the `response` Python library to synchronously interact
 with the Bitly API, but later transitioned to use Tornado's AsyncHTTPClient.
