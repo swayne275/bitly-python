@@ -42,8 +42,13 @@ that I use are `tornado` and `urllib`, so the setup process should be
 fairly straightforward. I chose port 8080 somewhat arbitrarily, but mostly
 used it over port 80 so that special permissions would not be required to
 run this API. That is easily changed by modifying a clearly marked variable
-at the top of `server.py`. I am happy to discuss any design decisions that
-I did not cover in this summary
+at the top of `server.py`. I asked Maria if this should be easily configurable
+when starting the server and did not get a response, so I left it as a variable
+in the code.
+
+I was originally planning to generate a `requirements.txt`, but with only two
+dependencies that didn't seem necessary (but would be a good future extension).
+I am happy to discuss any design decisions that I did not cover.
 
 # Installation
 1. Ensure Python 3.6.x+ is installed and in your path
@@ -61,28 +66,98 @@ After all dependencies are configured (inlcuding Python 3.6.x+), cd to the
 `/src/` directory of this project and run `python3 server.py`.
 
 # Using the API
-There is a single main endpoint, located at `{ip}:{port}/api/{version}/metrics`
-that will return data in the JSON format, discussed below. If you are running
-this locally without modification, it is accessed with an HTTP `GET` to
-`localhost:8080/api/v1/metrics`. There is also a handler for `/` that provides
-`{version}` and a dummy link to API documentation via a `GET`. To use this
-API you must know your Bitly `access_token` and provide it in the header of
-your request.
+## Overview
+There is a single main endpoint that will return the averaged country click
+metrics per bitlink, discussed below. All errors are nicely-formatted and will
+return a JSON body, as discussed below.
 
-To properly authenticate with the Bitly API, all of your `/api/{version}/metrics`
-requests must have a header field, `access_token`, where you provide the
-`access_token` associated with your Bitly account. The response will be of the
-form:
+## Interacting with the API
+The base url for this API is `http://[ip]:[port]`, where `ip` is the ip address
+of the machine this is running on, and `port` is the port the API is set to
+listen on. If you are running this locally with the default port, it becomes
+`localhost:8080`.
+
+There are two implemented endpoints:
+`/`                      - [Base]    Get basic data about the API
+`/api/[version]/metrics` - [Metrics] Get the averaged country click metrics
+
+If you are using this version of the API, `version` is `v1`.
+
+### Metrics Endpoint
+You must do an HTTP `GET` to `/api/[version]/metrics` that includes your
+`access_token` in the header as `access_token`. Postman is my preferred
+API testing tool, but if you prefer cURL the following example will
+successfully return the data, assuming you are running the API locally
+with the given defaults:
+```
+curl -X GET \
+  http://localhost:8080/api/v1/metrics \
+  -H 'access_token: [your account access_token]'
+```
+`your account access_token` is the `access_token` associated with your Bitly
+account.
+
+The endpoint will return JSON as follows:
 ```
 {
-    "[bitlink1]": {
-        "[country1]": float, [avg # clicks from [country1] over past 30 days],
+    "metrics": {
+        "[bitlinkx]": {
+            "[countryy]": float, [country metric xy],
+            ...
+        },
         ...
     },
-    ...
+    "uri": string, [uri that got here, e.g. "/api/v1/metrics"]
+}
+```
+where `bitlinkx` is the bitlink in question, `countryy` is the country the metrics
+are from, and `country metric xy` is the average number of clicks for `bitlinkx`
+from `country` over the past 30 days.
+
+### Base Endpoint
+You must do an HTTP `GET` to `/`, and no parameters are required. A cURL example
+of this is as follows:
+`curl -X GET http://localhost:8080/`
+
+The endpoint will return JSON as follows:
+```
+{
+    "apiversion": string, [API version running],
+    "apidocumentation": "In production I would give a doc link",
+    "uri": "/"
+}
+```
+Again, if this were in production I would include a real link to API documentation
+in the `apidocumentation` field.
+
+## API Errors
+The API will return an HTTP `405` for unimplemented routes/methods, and anything
+else that does not hit my other custom error handling. Those errors will return
+a JSON body of the form:
+```
+{
+    "error": {
+        "code": int, [non-200 HTTP Status Code],
+        "message": string, [standard message for that HTTP Status Code]
+    }
 }
 ```
 
+Custom errors in the API will be returned in the form:
+```
+{
+    "errortype": int, [error enum],
+    "errormessage": string, [generally human-readable message describing the issue],
+    "uri": string, [the API uri that was hit when this occured, e.g. "/api/v1/metrics"]
+}
+```
+The `errortype`s are defined as follows:
+`generic_internal_err = 1` - some otherwise-unclassified internal error occured
+`bitly_api_data_err = 2`   - data returned from Bitly was formatted incorrectly
+`bitly_api_http_err = 3`   - a non-200 HTTP status code was sent from the Bitly API
+`bad_token_err = 4`        - the client provided an invalid access_token with their request
+
+If the `errortype` is `3`, the `message` field will describe which HTTP status code was received.
 
 # Testing
 I have tested this API across the errors that I handle in the code, and have
