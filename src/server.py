@@ -18,15 +18,17 @@ import tornado.gen            # for building an async API in tornado
 import tornado.httpclient     # for HTTP exceptions from tornado AsyncHTTPClient
 import bitly_lib as bitly     # for bitly api interactions
 import logging
+from enum import Enum         # for standard error enumeration
 
 ##### Define port for web server to listen on #####
 web_server_port = 8080
 
 ##### Define basic error types #####
-generic_internal_err = 1 # generic internal error
-bitly_api_data_err   = 2 # Bitly data was not formatted as expected
-bitly_api_http_err   = 3 # Bitly API gave an HTTP error
-bad_token_err        = 4 # User provided an invalid access_token
+class Errors(Enum):
+    GENERIC_INTERNAL_ERR = 1    # generic internal error
+    BITLY_API_DATA_ERR   = 2    # Bitly data was not formatted as expected
+    BITLY_API_HTTP_ERR   = 3    # Bitly API gave an HTTP error
+    BAD_TOKEN_ERR        = 4    # User provided an invalid access_token
 
 ##### Define convenience variables #####
 api_version = "v1"      # api version served by this file
@@ -58,7 +60,7 @@ class ClickHandler(tornado.web.RequestHandler):
         try:
             token = self.request.headers.get('access_token')
             if not token or not isinstance(token, str):
-                send_httperr(self, bad_token_err, "Invalid access token provided",
+                send_httperr(self, Errors.BAD_TOKEN_ERR.value, "Invalid access token provided",
                     status=401)
                 return
 
@@ -68,12 +70,12 @@ class ClickHandler(tornado.web.RequestHandler):
             response['metrics'] = bitlinks_data
             send_success(self, response)
         except ValueError as value_error:
-            send_httperr(self, bitly_api_data_err, str(value_error))
+            send_httperr(self, Errors.BITLY_API_DATA_ERR.value, str(value_error))
         except TypeError as type_error:
-            send_httperr(self, bitly_api_data_err, str(type_error))
+            send_httperr(self, Errors.BITLY_API_DATA_ERR.value, str(type_error))
         except tornado.httpclient.HTTPError as http_err:
             logging.error(f'Bitly API raised an HTTP error: {str(http_err)}')
-            send_httperr(self, bitly_api_http_err, str(http_err))
+            send_httperr(self, Errors.BITLY_API_HTTP_ERR.value, str(http_err))
         except Exception as e:
             logging.error(f'Error: could not handle clicks! {str(e)}')
 
@@ -118,7 +120,7 @@ def send_success(request_handler, json_body):
         request_handler.set_header('Content-Type', 'application/json')
         json_body['uri'] = request_handler.request.uri
     except Exception as e:
-        send_httperr(request_handler, generic_internal_err,
+        send_httperr(request_handler, Errors.GENERIC_INTERNAL_ERR.value,
             "Error making success response: " + str(e))
     else:
         request_handler.write(json_body)
