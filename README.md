@@ -75,7 +75,7 @@ Note: If you are having a permissions issue installing Tornado that suggests
 using the `--user` flag, use that flag.
 
 # Running the API
-After all dependencies are configured (inlcuding Python 3.6.x+), cd to the
+After all dependencies are configured (including Python 3.6.x+), cd to the
 `/src/` directory of this project and run `python3 server.py`.
 
 Note that if you used a `venv` to install dependencies locally, that must be
@@ -131,7 +131,7 @@ The endpoint will return JSON as follows:
 ```
 where `bitlinkx` is the bitlink in question, `countryy` is the country the metrics
 are from, and `country metric xy` is the average number of clicks for `bitlinkx`
-from `country` over the past 30 days.
+from `countryy` over the past 30 days.
 
 ### Base Endpoint
 You must do an HTTP `GET` to `/`, and no parameters are required. A cURL example
