@@ -134,7 +134,7 @@ def validate_country_response(response):
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
 @tornado.gen.coroutine
-def async_http_get(base_url, token, params={}):
+def async_http_get(base_url, token, params=None):
     """ Non-blocking HTTP get for use with an Authorization: Bearer access token
     Note: Expects JSON response from {url}
     Params:
