@@ -9,6 +9,7 @@ import tornado.httpclient     # for async http client
 import tornado.httputil       # for various http client utilities
 import urllib.parse           # for bitly url encoding
 import logging
+import time # !!! SW remove when done testing
 
 ##### Define convenience variables #####
 html_prefix_end = '://' # delimiter between url scheme and domain
@@ -45,7 +46,7 @@ def async_get_group_guid(token):
     Return:
         [string] default_group_guid for the provided access token
     """
-    response = yield async_http_get(get_user_url(), token)
+    response = yield async_http_get_json(get_user_url(), token)
     if 'default_group_guid' not in response:
         logging.error(f'Missing guid data from Bitly: {json.dumps(response)}')
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
@@ -63,7 +64,7 @@ def async_get_bitlinks(token, group_guid):
     Return:
         List of encoded domain/hashes for the bitlinks for this group_guid
     """
-    response = yield async_http_get(get_bitlinks_url(group_guid), token)
+    response = yield async_http_get_json(get_bitlinks_url(group_guid), token)
     validate_bitlinks_response(response)
     encoded_bitlinks_list = []
     for link_obj in response['links']:
@@ -106,15 +107,27 @@ def async_get_country_counts(token, encoded_bitlinks_list):
         }
     """
     bitlinks_data = {}
-    for encoded_bitlink in encoded_bitlinks_list:
-        payload = {'unit': 'day', 'units': 30}
-        response = yield async_http_get(get_country_url(encoded_bitlink), token, params=payload)
-        validate_country_response(response)
-        for country_obj in response['metrics']:
+    payload = {'unit': 'day', 'units': 30}
+    responses = yield tornado.gen.multi([async_http_get(get_country_url(url), token, params=payload) for url in encoded_bitlinks_list])
+
+    cnt = 0
+    for future_response in responses:
+        json_body = {}
+        try:
+            json_body = json.loads(future_response.body)
+        except Exception as e:
+            # In general don't catch generic, but functionally it doesn't matter
+            # why the JSON couldn't parse, just that it couldn't parse. Would not
+            # do in production
+            logging.error(f'Could not parse data from Bitly: {str(e)}')
+
+        validate_country_response(json_body)
+        for country_obj in json_body['metrics']:
             country_str = country_obj['value']
             country_clicks = country_obj['clicks']
-            bitlinks_data[encoded_bitlink] = {}
-            bitlinks_data[encoded_bitlink][country_str] = (country_clicks / num_days)
+            bitlinks_data[cnt] = {}
+            bitlinks_data[cnt][country_str] = (country_clicks / num_days)
+            cnt = cnt + 1
     raise tornado.gen.Return(bitlinks_data)
 
 def validate_country_response(response):
@@ -136,6 +149,17 @@ def validate_country_response(response):
 
 @tornado.gen.coroutine
 def async_http_get(base_url, token, params=None):
+    print(f"!!! SW url {base_url} at time {time.time()}")
+    client = tornado.httpclient.AsyncHTTPClient()
+    headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
+    url = tornado.httputil.url_concat(base_url, params)
+    request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
+
+    response = yield client.fetch(request)
+    raise tornado.gen.Return(response)
+
+@tornado.gen.coroutine
+def async_http_get_json(base_url, token, params=None):
     """ Non-blocking HTTP get for use with an Authorization: Bearer access token
     Note: Expects JSON response from {url}
     Params:
