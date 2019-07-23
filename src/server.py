@@ -25,10 +25,10 @@ web_server_port = 8080
 
 ##### Define basic error types #####
 class Errors(Enum):
-    GENERIC_INTERNAL_ERR = 1
-    BITLY_API_DATA_ERR = 2
-    BITLY_API_HTTP_ERR = 3
-    BAD_TOKEN_ERR = 4
+    GENERIC_INTERNAL_ERR = 1    # generic internal error
+    BITLY_API_DATA_ERR   = 2    # Bitly data was not formatted as expected
+    BITLY_API_HTTP_ERR   = 3    # Bitly API gave an HTTP error
+    BAD_TOKEN_ERR        = 4    # User provided an invalid access_token
 
 ##### Define convenience variables #####
 api_version = "v1"      # api version served by this file
