@@ -57,9 +57,7 @@ at the top of `server.py`. I asked Maria if the port should be easily
 configurable when starting the server and did not get a response, so I left
 it as a well-documented variable in the code.
 
-I was originally planning to generate a `requirements.txt`, but with only one
-dependency that didn't seem necessary (but would be a good future extension).
-I am happy to discuss any design decisions that I did not cover.
+I generated a `requirements.txt` to have more deterministic builds. I am happy to discuss any design decisions that I did not cover.
 
 # Installation
 1. Ensure Python 3.6.x+ is installed and in your path
@@ -69,7 +67,7 @@ I am happy to discuss any design decisions that I did not cover.
 1. [optional] `pip install -U virtualenv` (install python virtual environment)
 1. [optional] `virtualenv venv` (create the virtual environment)
 1. [optional] `. venv/bin/activate` (activate the virtual environment)
-1. `pip3 install tornado` (install tornado)
+1. `pip3 install -r requirements.txt` (install dependencies, aka Tornado)
 
 Note: If you are having a permissions issue installing Tornado that suggests
 using the `--user` flag, use that flag.
