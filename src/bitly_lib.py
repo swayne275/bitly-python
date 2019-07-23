@@ -46,10 +46,10 @@ def async_get_group_guid(token):
     """
     response = yield async_http_get(get_user_url(), token)
     if 'default_group_guid' not in response:
-        logging.error("Missing guid data from Bitly: " + json.dumps(response))
+        logging.error(f'Missing guid data from Bitly: {json.dumps(response)}')
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
     if not isinstance(response['default_group_guid'], str):
-        logging.error("Invalid guid data type from Bitly: " + json.dumps(response))
+        logging.error(f'Invalid guid data type from Bitly: {json.dumps(response)}')
         raise TypeError('"default_group_guid" from Bitly has invalid type')
     raise tornado.gen.Return(response['default_group_guid'])
 
@@ -83,7 +83,7 @@ def validate_bitlinks_response(response):
         raise ValueError('"links" field not in data retrieved from Bitly')
     for link_obj in response['links']:
         if 'link' not in link_obj:
-            logging.error('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
+            logging.error(f'"link" field missing from bitlinks data: {json.dumps(link_obj)}')
             raise ValueError('"link" field not in data retrieved from Bitly')
         if not isinstance(link_obj['link'], str):
             raise TypeError('"link" field data type from Bitly is incorrect')
@@ -127,10 +127,10 @@ def validate_country_response(response):
         raise ValueError('"metrics" field not in data retrieved from Bitly')
     for country_obj in response['metrics']:
         if 'value' not in country_obj:
-            logging.error('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
+            logging.error(f'"value" field missing from bitlinks data: {json.dumps(country_obj)}')
             raise ValueError('"value" field not in data retrieved from Bitly')
         if 'clicks' not in country_obj:
-            logging.error('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
+            logging.error(f'"clicks" field missing from bitlinks data: {json.dumps(country_obj)}')
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
 @tornado.gen.coroutine
@@ -159,7 +159,7 @@ def async_http_get(base_url, token, params={}):
         # In general don't catch generic, but functionally it doesn't matter
         # why the JSON couldn't parse, just that it couldn't parse. Would not
         # do in production
-        logging.error("Could not parse data from Bitly (expected JSON): " + str(e))
+        logging.error(f'Could not parse data from Bitly (expected JSON): {str(e)}')
 
     raise tornado.gen.Return(json_body)
 
@@ -173,12 +173,12 @@ def get_bitlinks_url(group_guid):
     Params:
         group_guid: group_guid to use to build this URL
     """
-    return ('https://api-ssl.bitly.com/v4/groups/%s/bitlinks' % group_guid)
+    return (f'https://api-ssl.bitly.com/v4/groups/{group_guid}/bitlinks')
 
 def get_country_url(bitlink):
     """ Return Bitly API endpoint for accessing bitly metrics by country
     """
-    return ('https://api-ssl.bitly.com/v4/bitlinks/%s/countries' % bitlink)
+    return (f'https://api-ssl.bitly.com/v4/bitlinks/{bitlink}/countries')
 
 def parse_bitlink(bitlink_url):
     """ Strip a URL of the HTML scheme and delimiter

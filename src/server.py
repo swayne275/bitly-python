@@ -42,7 +42,7 @@ class MainHandler(tornado.web.RequestHandler):
             response['apidocumentation'] = 'In production I would give a doc link'
             send_success(self, response)
         except Exception as e:
-            logging.error('Error: could not serve /: ' + str(e))
+            logging.error(f'Error: could not serve /: {str(e)}')
 
     @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
@@ -72,10 +72,10 @@ class ClickHandler(tornado.web.RequestHandler):
         except TypeError as type_error:
             send_httperr(self, bitly_api_data_err, str(type_error))
         except tornado.httpclient.HTTPError as http_err:
-            logging.error("Bitly API raised an HTTP error: " + str(http_err))
+            logging.error(f'Bitly API raised an HTTP error: {str(http_err)}')
             send_httperr(self, bitly_api_http_err, str(http_err))
         except Exception as e:
-            logging.error("Error: could not handle clicks! " + str(e))
+            logging.error(f'Error: could not handle clicks! {str(e)}')
 
     @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
@@ -132,7 +132,7 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
         status: [optional] HTTP code to send error as
     """
     uri = request_handler.request.uri
-    logging.debug("Sending HTTP error (for uri %s): %s" % (uri, err_msg))
+    logging.debug(f'Sending HTTP error (for uri {uri}): {err_msg}')
     request_handler.set_header('Content-Type', 'application/json')
     http_err = {}
     http_err['errortype'] = err_type
@@ -144,13 +144,13 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
 def signal_handler(signal, frame):
     """ Install signal handler for things like Ctrl+C
     """
-    logging.info("Caught signal, exiting...")
+    logging.info('Caught signal, exiting...')
     sys.exit(0)
 
 def server_init():
     """ Perform pre-app init tasks before initializing the web server
     """
-    logging.info("Initializing Bitly Backend Test API web server")
+    logging.info('Initializing Bitly Backend Test API web server')
     signal.signal(signal.SIGINT, signal_handler)
 
 def make_app():
@@ -159,21 +159,21 @@ def make_app():
         Tornado web app to run
     """
     return tornado.web.Application([
-        ("/",                               MainHandler),
-        ("/api/%s/metrics/?" % api_version, ClickHandler),
-        ("/.*",                             GenericHandler)
+        ('/',                             MainHandler),
+        (f'/api/{api_version}/metrics/?', ClickHandler),
+        ('/.*',                           GenericHandler)
     ])
 
 if __name__ == "__main__":
     try:
         logging.basicConfig(level=logging.INFO)
-        logging.info("Starting Bitly backend test API, version %s" % api_version)
+        logging.info(f'Starting Bitly backend test API, version {api_version}')
         # verify can get group_guid and type
         server_init()
         # Start the http webserver
         app = make_app()
         app.listen(web_server_port)
-        logging.info("Started http server on port %d" % web_server_port)
+        logging.info(f'Started http server on port {web_server_port}')
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        logging.critical("Could not start API on port %d: %s" % (web_server_port, str(e)))
+        logging.critical(f'Could not start API on port {web_server_port}: {str(e)}')
