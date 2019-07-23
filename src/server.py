@@ -42,7 +42,7 @@ class MainHandler(tornado.web.RequestHandler):
             response['apidocumentation'] = 'In production I would give a doc link'
             send_success(self, response)
         except Exception as e:
-            logging.error('Error: could not serve /: ' + str(e))
+            logging.error(f'Error: could not serve /: {str(e)}')
 
     @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
@@ -72,10 +72,10 @@ class ClickHandler(tornado.web.RequestHandler):
         except TypeError as type_error:
             send_httperr(self, bitly_api_data_err, str(type_error))
         except tornado.httpclient.HTTPError as http_err:
-            logging.error("Bitly API raised an HTTP error: " + str(http_err))
+            logging.error(f"Bitly API raised an HTTP error: {str(http_err)}")
             send_httperr(self, bitly_api_http_err, str(http_err))
         except Exception as e:
-            logging.error("Error: could not handle clicks! " + str(e))
+            logging.error(f"Error: could not handle clicks! {str(e)}")
 
     @tornado.gen.coroutine
     def write_error(self, status_code, **kwargs):
@@ -132,7 +132,7 @@ def send_httperr(request_handler, err_type, err_msg, status=500):
         status: [optional] HTTP code to send error as
     """
     uri = request_handler.request.uri
-    logging.debug("Sending HTTP error (for uri %s): %s" % (uri, err_msg))
+    logging.debug(f"Sending HTTP error (for uri {uri}): {err_msg}")
     request_handler.set_header('Content-Type', 'application/json')
     http_err = {}
     http_err['errortype'] = err_type
@@ -167,13 +167,13 @@ def make_app():
 if __name__ == "__main__":
     try:
         logging.basicConfig(level=logging.INFO)
-        logging.info("Starting Bitly backend test API, version %s" % api_version)
+        logging.info(f"Starting Bitly backend test API, version {api_version}")
         # verify can get group_guid and type
         server_init()
         # Start the http webserver
         app = make_app()
         app.listen(web_server_port)
-        logging.info("Started http server on port %d" % web_server_port)
+        logging.info(f"Started http server on port {web_server_port}")
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
-        logging.critical("Could not start API on port %d: %s" % (web_server_port, str(e)))
+        logging.critical(f"Could not start API on port {web_server_port}: {str(e)}")
