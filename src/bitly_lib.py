@@ -183,6 +183,7 @@ def get_country_url(bitlink):
 
 def parse_bitlink(bitlink_url):
     """ Strip a URL of the HTML scheme and delimiter
+    !!! SW TODO prefix_start_pos == -1 if not found, handle that case
     Params:
         bitlink_url: complete URL of the bitlink to strip
     Return:
