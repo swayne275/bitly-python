@@ -14,7 +14,8 @@ import logging
 html_prefix_end = '://' # delimiter between url scheme and domain
 num_days = 30           # number of days to average over for this problem
 
-async def async_get_metrics(token):
+@tornado.gen.coroutine
+def async_get_metrics(token):
     """ Async get country click metrics for a user's default group
     Params:
         token: Access token for Bitly API request
@@ -28,9 +29,9 @@ async def async_get_metrics(token):
             ...
         }
     """
-    group_guid = await async_get_group_guid(token)
-    encoded_bitlinks_list = await async_get_bitlinks(token, group_guid)
-    bitlinks_data = await async_get_country_counts(token, encoded_bitlinks_list)
+    group_guid = yield async_get_group_guid(token)
+    encoded_bitlinks_list = yield async_get_bitlinks(token, group_guid)
+    bitlinks_data = yield async_get_country_counts(token, encoded_bitlinks_list)
     return bitlinks_data
 
 @tornado.gen.coroutine
