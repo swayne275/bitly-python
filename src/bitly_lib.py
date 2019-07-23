@@ -106,8 +106,9 @@ def async_get_country_counts(token, encoded_bitlinks_list):
     """
     bitlinks_data = {}
     for encoded_bitlink in encoded_bitlinks_list:
-        payload = {'unit': 'month'}
+        payload = {'unit': 'day', 'units': 30}
         response = yield async_http_get(get_country_url(encoded_bitlink), token, params=payload)
+        print("!!! SW dump: " + json.dumps(response))
         validate_country_response(response)
         for country_obj in response['metrics']:
             country_str = country_obj['value']
