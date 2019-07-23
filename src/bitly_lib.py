@@ -10,8 +10,6 @@ import tornado.httputil       # for various http client utilities
 import urllib.parse           # for bitly url encoding
 import logging
 
-#logging.basicConfig(level=logging.ERROR)
-
 ##### Define convenience variables #####
 html_prefix_end = '://' # delimiter between url scheme and domain
 num_days = 30           # number of days to average over for this problem
