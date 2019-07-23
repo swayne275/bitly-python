@@ -159,9 +159,9 @@ def make_app():
         Tornado web app to run
     """
     return tornado.web.Application([
-        ("/",                               MainHandler),
-        ("/api/%s/metrics/?" % api_version, ClickHandler),
-        ("/.*",                             GenericHandler)
+        ("/",                             MainHandler),
+        (f"/api/{api_version}/metrics/?", ClickHandler),
+        ("/.*",                           GenericHandler)
     ])
 
 if __name__ == "__main__":
