@@ -173,7 +173,7 @@ if __name__ == "__main__":
         # Start the http webserver
         app = make_app()
         app.listen(web_server_port)
-        logging.info("started http server on port %d" % web_server_port)
+        logging.info("Started http server on port %d" % web_server_port)
         tornado.ioloop.IOLoop.current().start()
     except Exception as e:
         logging.critical("Could not start API on port %d: %s" % (web_server_port, str(e)))

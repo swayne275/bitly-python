@@ -8,7 +8,9 @@ import tornado.gen            # for async http gets to Bitly API
 import tornado.httpclient     # for async http client
 import tornado.httputil       # for various http client utilities
 import urllib.parse           # for bitly url encoding
-from datetime import datetime # for log message timing
+import logging
+
+#logging.basicConfig(level=logging.ERROR)
 
 ##### Define convenience variables #####
 html_prefix_end = '://' # delimiter between url scheme and domain
@@ -46,10 +48,10 @@ def async_get_group_guid(token):
     """
     response = yield async_http_get(get_user_url(), token)
     if 'default_group_guid' not in response:
-        log("Missing guid data from Bitly: " + json.dumps(response))
+        logging.error("Missing guid data from Bitly: " + json.dumps(response))
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
     if not isinstance(response['default_group_guid'], str):
-        log("Invalid guid data type from Bitly: " + json.dumps(response))
+        logging.error("Invalid guid data type from Bitly: " + json.dumps(response))
         raise TypeError('"default_group_guid" from Bitly has invalid type')
     raise tornado.gen.Return(response['default_group_guid'])
 
@@ -83,7 +85,7 @@ def validate_bitlinks_response(response):
         raise ValueError('"links" field not in data retrieved from Bitly')
     for link_obj in response['links']:
         if 'link' not in link_obj:
-            log('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
+            logging.error('"link" field missing from bitlinks data: ' + json.dumps(link_obj))
             raise ValueError('"link" field not in data retrieved from Bitly')
         if not isinstance(link_obj['link'], str):
             raise TypeError('"link" field data type from Bitly is incorrect')
@@ -127,10 +129,10 @@ def validate_country_response(response):
         raise ValueError('"metrics" field not in data retrieved from Bitly')
     for country_obj in response['metrics']:
         if 'value' not in country_obj:
-            log('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
+            logging.error('"value" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"value" field not in data retrieved from Bitly')
         if 'clicks' not in country_obj:
-            log('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
+            logging.error('"clicks" field missing from bitlinks data: ' + json.dumps(country_obj))
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
 @tornado.gen.coroutine
@@ -159,7 +161,7 @@ def async_http_get(base_url, token, params={}):
         # In general don't catch generic, but functionally it doesn't matter
         # why the JSON couldn't parse, just that it couldn't parse. Would not
         # do in production
-        log("Could not parse data from Bitly (expected JSON): " + str(e))
+        logging.error("Could not parse data from Bitly (expected JSON): " + str(e))
 
     raise tornado.gen.Return(json_body)
 
@@ -192,11 +194,3 @@ def parse_bitlink(bitlink_url):
     prefix_end_pos = prefix_start_pos + len(html_prefix_end)
     # return the domain and hash of the bitlink
     return bitlink_url[prefix_end_pos:]
-
-def log(log_msg):
-    """ Standardized way to log a bitly_lib message (read: output to console)
-    Params:
-        log_msg: Message to log, ideally human-readable
-    """
-    log_data = "[" + str(datetime.now()) + "] bitly_lib: %s" % log_msg
-    print(log_data)
