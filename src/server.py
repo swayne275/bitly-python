@@ -26,9 +26,9 @@ web_server_port = 8080
 ##### Define basic error types #####
 class Errors(Enum):
     GENERIC_INTERNAL_ERR = 1    # generic internal error
-    BITLY_API_DATA_ERR   = 2    # Bitly data was not formatted as expected
-    BITLY_API_HTTP_ERR   = 3    # Bitly API gave an HTTP error
-    BAD_TOKEN_ERR        = 4    # User provided an invalid access_token
+    BITLY_API_DATA_ERR = 2      # Bitly data was not formatted as expected
+    BITLY_API_HTTP_ERR = 3      # Bitly API gave an HTTP error
+    BAD_TOKEN_ERR = 4           # User provided an invalid access_token
 
 ##### Define convenience variables #####
 api_version = "v1"      # api version served by this file
@@ -58,7 +58,7 @@ class ClickHandler(tornado.web.RequestHandler):
             token = self.request.headers.get('access_token')
             if not token or not isinstance(token, str):
                 send_httperr(self, Errors.BAD_TOKEN_ERR.value, "Invalid access token provided",
-                    status=HTTPStatus.UNAUTHORIZED)
+                             status=HTTPStatus.UNAUTHORIZED)
                 return
 
             bitlinks_data = await bitly.async_get_metrics(token)
@@ -99,11 +99,11 @@ def override_write_error(request_handler, status_code):
     """
     request_handler.set_header('Content-Type', 'application/json')
     request_handler.finish(json.dumps({
-            'error': {
-                'code': status_code,
-                'message': request_handler._reason,
-            }
-        }))
+        'error': {
+            'code': status_code,
+            'message': request_handler._reason,
+        }
+    }))
 
 def send_success(request_handler, json_body):
     """ Handle boilerplate for returning HTTP 200 with data
@@ -116,7 +116,7 @@ def send_success(request_handler, json_body):
         json_body['uri'] = request_handler.request.uri
     except Exception as e:
         send_httperr(request_handler, Errors.GENERIC_INTERNAL_ERR.value,
-            "Error making success response: " + str(e))
+                     "Error making success response: " + str(e))
     else:
         request_handler.write(json_body)
 
@@ -156,9 +156,9 @@ def make_app():
         Tornado web app to run
     """
     return tornado.web.Application([
-        ('/',                             MainHandler),
+        ('/', MainHandler),
         (f'/api/{api_version}/metrics/?', ClickHandler),
-        ('/.*',                           GenericHandler)
+        ('/.*', GenericHandler)
     ])
 
 if __name__ == "__main__":
