@@ -117,35 +117,19 @@ def async_get_country_counts(token, encoded_bitlinks_list):
     raise tornado.gen.Return(bitlinks_data)
 
 @tornado.gen.coroutine
-def async_http_get(base_url, token, params=None):
-    print(f"!!! SW url {base_url} at time {time.time()}")
-    client = tornado.httpclient.AsyncHTTPClient()
-    headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
-    url = tornado.httputil.url_concat(base_url, params)
-    request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
-
-    response = yield client.fetch(request)
-    raise tornado.gen.Return(response)
-
-@tornado.gen.coroutine
 def async_http_get_json(base_url, token, params=None):
     """ Non-blocking HTTP get for use with an Authorization: Bearer access token
-    Note: Expects JSON response from {url}
+    Note: Expects JSON response from {base_url}
     Params:
         base_url: URL to HTTP Get data from (no query parameters)
         token: Access token for Bitly API request
-        params: [optional] query parameters for the HTTP request
+        params: [optional] query parameters for the HTTP request as dictionary
     Throws:
         tornado.httpclient.HTTPError if Bitly response status is not 200
     Return:
         JSON data resulting from the HTTP get
     """
-    client = tornado.httpclient.AsyncHTTPClient()
-    headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
-    url = tornado.httputil.url_concat(base_url, params)
-    request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
-
-    response = yield client.fetch(request)
+    response = yield async_http_get(base_url, token, params=params)
     json_body = {}
     try:
         json_body = json.loads(response.body)
@@ -156,6 +140,27 @@ def async_http_get_json(base_url, token, params=None):
         logging.error(f'Could not parse data from Bitly (expected JSON): {str(e)}')
 
     raise tornado.gen.Return(json_body)
+
+@tornado.gen.coroutine
+def async_http_get(base_url, token, params=None):
+    """ Non-blocking HTTP get for use with an Authorization: Bearer access token
+    Params:
+        base_url: URL to HTTP Get data from (no query parameters)
+        token: Access token for Bitly API request
+        params: [optional] query parameters for the HTTP request as dictionary
+    Throws:
+        tornado.httpclient.HTTPError if Bitly response status is not 200
+    Return:
+        Response future resulting from HTTP get
+    """
+    print(f"!!! SW url {base_url} at time {time.time()}")
+    client = tornado.httpclient.AsyncHTTPClient()
+    headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
+    url = tornado.httputil.url_concat(base_url, params)
+    request = tornado.httpclient.HTTPRequest(url, method='GET', headers=headers)
+    response = yield client.fetch(request)
+
+    raise tornado.gen.Return(response)
 
 def validate_bitlinks_response(response):
     """ Validate the Bitly data returned containing bitlinks for a group_guid
