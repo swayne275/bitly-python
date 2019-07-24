@@ -110,24 +110,26 @@ def async_get_country_counts(token, encoded_bitlinks_list):
     payload = {'unit': 'day', 'units': 30}
     responses = yield tornado.gen.multi([async_http_get(get_country_url(url), token, params=payload) for url in encoded_bitlinks_list])
 
-    cnt = 0
-    for future_response in responses:
-        json_body = {}
+    # tornado multi produces a list in the same order as passed in, so we can zip the
+    # encoded bitlinks (as keys) with the responses (as values) safely
+    bitlink_to_country_data = dict(zip(encoded_bitlinks_list, responses))
+    for encoded_bitlink, country_response_future in bitlink_to_country_data.items():
+        json_country_data = {}
         try:
-            json_body = json.loads(future_response.body)
+            json_country_data = json.loads(country_response_future.body)
         except Exception as e:
             # In general don't catch generic, but functionally it doesn't matter
             # why the JSON couldn't parse, just that it couldn't parse. Would not
             # do in production
-            logging.error(f'Could not parse data from Bitly: {str(e)}')
+            logging.error(f'Could not parse data from Bitly for bitlink {encoded_bitlink}: {country_response_future}')
 
-        validate_country_response(json_body)
-        for country_obj in json_body['metrics']:
-            country_str = country_obj['value']
+        validate_country_response(json_country_data)
+        bitlinks_data[encoded_bitlink] = {}
+        for country_obj in json_country_data['metrics']:
+            country_name = country_obj['value']
             country_clicks = country_obj['clicks']
-            bitlinks_data[cnt] = {}
-            bitlinks_data[cnt][country_str] = (country_clicks / num_days)
-            cnt = cnt + 1
+            bitlinks_data[encoded_bitlink][country_name] = (country_clicks / num_days)
+
     raise tornado.gen.Return(bitlinks_data)
 
 def validate_country_response(response):
