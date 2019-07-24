@@ -1,37 +1,41 @@
 #!/usr/bin/env python3
 
-# Web server to host the API that meets the requirements of the
-# Bitly backend coding challenge
-#
-# Once you have the requirements installed for Python 3
-# (tornado and urllib), cd to this directory and run
-# "python3 server.py" to start the webserver
-#
-# Stephen Wayne
+"""
+Web server to host the API that meets the requirements of the
+Bitly backend coding challenge
+
+Once you have the requirements installed for Python 3
+(tornado and urllib), cd to this directory and run
+"python3 server.py" to start the webserver
+
+Stephen Wayne
+"""
 
 import signal                 # for signal handling
 import sys                    # for signal handling
 import json                   # for JSON manipulation
-import tornado.ioloop         # for web server hosting
-import tornado.web            # for web server hosting
-import tornado.httpclient     # for HTTP exceptions from tornado AsyncHTTPClient
 import logging
 from enum import Enum         # for standard error enumeration
 from http import HTTPStatus   # for http status enum (for code clarity)
+import tornado.ioloop         # for web server hosting
+import tornado.web            # for web server hosting
+import tornado.httpclient     # for HTTP exceptions from tornado AsyncHTTPClient
 import bitly_lib as bitly     # for bitly api interactions
 
 ##### Define port for web server to listen on #####
-web_server_port = 8080
+WEB_SERVER_PORT = 8080
 
 ##### Define basic error types #####
 class Errors(Enum):
+    """ Enumeration of standardized errors to return to client
+    """
     GENERIC_INTERNAL_ERR = 1    # generic internal error
-    BITLY_API_DATA_ERR   = 2    # Bitly data was not formatted as expected
-    BITLY_API_HTTP_ERR   = 3    # Bitly API gave an HTTP error
-    BAD_TOKEN_ERR        = 4    # User provided an invalid access_token
+    BITLY_API_DATA_ERR = 2      # Bitly data was not formatted as expected
+    BITLY_API_HTTP_ERR = 3      # Bitly API gave an HTTP error
+    BAD_TOKEN_ERR = 4           # User provided an invalid access_token
 
 ##### Define convenience variables #####
-api_version = "v1"      # api version served by this file
+API_VERSION = "v1"      # api version served by this file
 
 class MainHandler(tornado.web.RequestHandler):
     """ Handle gets for '/' by returning basic API data
@@ -39,11 +43,11 @@ class MainHandler(tornado.web.RequestHandler):
     async def get(self):
         try:
             response = {}
-            response['apiversion'] = api_version
+            response['apiversion'] = API_VERSION
             response['apidocumentation'] = 'In production I would give a doc link'
             send_success(self, response)
-        except Exception as e:
-            logging.error(f'Error: could not serve /: {str(e)}')
+        except Exception as generic_e:
+            logging.error('Error: could not serve /: %s', str(generic_e))
 
     async def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
@@ -58,7 +62,7 @@ class ClickHandler(tornado.web.RequestHandler):
             token = self.request.headers.get('access_token')
             if not token or not isinstance(token, str):
                 send_httperr(self, Errors.BAD_TOKEN_ERR.value, "Invalid access token provided",
-                    status=HTTPStatus.UNAUTHORIZED)
+                             status=HTTPStatus.UNAUTHORIZED)
                 return
 
             bitlinks_data = await bitly.async_get_metrics(token)
@@ -71,10 +75,10 @@ class ClickHandler(tornado.web.RequestHandler):
         except TypeError as type_error:
             send_httperr(self, Errors.BITLY_API_DATA_ERR.value, str(type_error))
         except tornado.httpclient.HTTPError as http_err:
-            logging.error(f'Bitly API raised an HTTP error: {str(http_err)}')
+            logging.error('Bitly API raised an HTTP error: %s', str(http_err))
             send_httperr(self, Errors.BITLY_API_HTTP_ERR.value, str(http_err))
-        except Exception as e:
-            logging.error(f'Error: could not handle clicks! {str(e)}')
+        except Exception as generic_e:
+            logging.error('Error: could not handle clicks: %s', str(generic_e))
 
     async def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
@@ -99,37 +103,37 @@ def override_write_error(request_handler, status_code):
     """
     request_handler.set_header('Content-Type', 'application/json')
     request_handler.finish(json.dumps({
-            'error': {
-                'code': status_code,
-                'message': request_handler._reason,
-            }
-        }))
+        'error': {
+            'code': status_code,
+            'message': request_handler._reason,
+        }
+    }))
 
 def send_success(request_handler, json_body):
-    """ Handle boilerplate for returning HTTP 200 with data
-    Params:
-        calling_handler: Tornado API endpoint sending success + data
-        json_body: JSON data to send to the client
+    """
+    Handle boilerplate for returning HTTP 200 with data
+    :param request_handler: Tornado API endpoint sending success + data
+    :param json_body: JSON data to send to the client
     """
     try:
         request_handler.set_header('Content-Type', 'application/json')
         json_body['uri'] = request_handler.request.uri
-    except Exception as e:
+    except Exception as generic_e:
         send_httperr(request_handler, Errors.GENERIC_INTERNAL_ERR.value,
-            "Error making success response: " + str(e))
+                     "Error making success response: " + str(generic_e))
     else:
         request_handler.write(json_body)
 
 def send_httperr(request_handler, err_type, err_msg, status=HTTPStatus.INTERNAL_SERVER_ERROR):
-    """ Handle boilerplate for returning HTTP error with message
-    Params
-        calling_handler: Tornado API endpoint returning error
-        err_type: Type enum for automations to better understand
-        err_msg: Human-readable semi-specific error message
-        status: [optional] HTTPStatus enum to send error as
+    """
+    Handle boilerplate for returning HTTP error with message
+    :param request_handler: Tornado API endpoint returning error
+    :param err_type: Type enum for automations to better understand
+    :param err_msg: Human-readable semi-specific error message
+    :param status: [optional] HTTPStatus enum to send error as
     """
     uri = request_handler.request.uri
-    logging.debug(f'Sending HTTP error (for uri {uri}): {err_msg}')
+    logging.debug('Sending HTTP error (for uri %s): %s', uri, err_msg)
     request_handler.set_header('Content-Type', 'application/json')
     http_err = {}
     http_err['errortype'] = err_type
@@ -138,7 +142,7 @@ def send_httperr(request_handler, err_type, err_msg, status=HTTPStatus.INTERNAL_
     request_handler.set_status(status)
     request_handler.finish(http_err)
 
-def signal_handler(sig, frame):
+def signal_handler(_sig, _frame):
     """ Install signal handler for things like Ctrl+C
     """
     logging.info('Caught signal, exiting...')
@@ -156,21 +160,21 @@ def make_app():
         Tornado web app to run
     """
     return tornado.web.Application([
-        ('/',                             MainHandler),
-        (f'/api/{api_version}/metrics/?', ClickHandler),
-        ('/.*',                           GenericHandler)
+        ('/', MainHandler),
+        (f'/api/{API_VERSION}/metrics/?', ClickHandler),
+        ('/.*', GenericHandler)
     ])
 
 if __name__ == "__main__":
     try:
         logging.basicConfig(level=logging.INFO)
-        logging.info(f'Starting Bitly backend test API, version {api_version}')
+        logging.info('Starting Bitly backend test API, version %s', API_VERSION)
         # verify can get group_guid and type
         server_init()
         # Start the http webserver
-        app = make_app()
-        app.listen(web_server_port)
-        logging.info(f'Started http server on port {web_server_port}')
+        APP = make_app()
+        APP.listen(WEB_SERVER_PORT)
+        logging.info('Started http server on port %s', WEB_SERVER_PORT)
         tornado.ioloop.IOLoop.current().start()
-    except Exception as e:
-        logging.critical(f'Could not start API on port {web_server_port}: {str(e)}')
+    except Exception as generic_e:
+        logging.critical('Could not start API on port %s: %s', WEB_SERVER_PORT, str(generic_e))

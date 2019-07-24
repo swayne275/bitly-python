@@ -1,18 +1,20 @@
-# Library for interacting with the relevant Bitly API endpoints
-# as per the coding challenge specifications
-#
-# Stephen Wayne
+"""
+Library for interacting with the relevant Bitly API endpoints
+as per the coding challenge specifications
+
+Stephen Wayne
+"""
 
 import json                   # for json manipulation
+import urllib.parse           # for bitly url encoding
+import logging
 import tornado.gen            # for async http gets to Bitly API
 import tornado.httpclient     # for async http client
 import tornado.httputil       # for various http client utilities
-import urllib.parse           # for bitly url encoding
-import logging
 
 ##### Define convenience variables #####
-html_prefix_end = '://' # delimiter between url scheme and domain
-num_days = 30           # number of days to average over for this problem
+HTML_PREFIX_END = '://' # delimiter between url scheme and domain
+NUM_DAYS = 30           # number of days to average over for this problem
 
 async def async_get_metrics(token):
     """ Async get country click metrics for a user's default group
@@ -45,10 +47,10 @@ async def async_get_group_guid(token):
     """
     response = await async_http_get_json(get_user_url(), token)
     if 'default_group_guid' not in response:
-        logging.error(f'Missing guid data from Bitly: {json.dumps(response)}')
+        logging.error('Missing guid data from Bitly: %s', json.dumps(response))
         raise ValueError('"default_group_guid" not in data retrieved from Bitly')
     if not isinstance(response['default_group_guid'], str):
-        logging.error(f'Invalid guid data type from Bitly: {json.dumps(response)}')
+        logging.error('Invalid guid data type from Bitly: %s', json.dumps(response))
         raise TypeError('"default_group_guid" from Bitly has invalid type')
     return response['default_group_guid']
 
@@ -87,7 +89,7 @@ async def async_get_country_counts(token, encoded_bitlinks_list):
     bitlinks_data = {}
     payload = {'unit': 'day', 'units': 30}
     responses = await tornado.gen.multi([async_http_get(get_country_url(url), token, params=payload)
-        for url in encoded_bitlinks_list])
+                                         for url in encoded_bitlinks_list])
 
     # tornado multi produces a list in the same order as passed in, so we can zip the
     # encoded bitlinks (as keys) with the response futures (as values) safely
@@ -96,18 +98,19 @@ async def async_get_country_counts(token, encoded_bitlinks_list):
         json_country_data = {}
         try:
             json_country_data = json.loads(country_future.body)
-        except Exception as e:
+        except Exception as generic_e:
             # In general don't catch generic, but functionally it doesn't matter
             # why the JSON couldn't parse, just that it couldn't parse. Would not
             # do in production
-            logging.error(f'Could not parse data from Bitly for bitlink {encoded_bitlink}: {str(e)}')
+            logging.error('Could not parse data from Bitly for bitlink %s: %s',
+                          encoded_bitlink, str(generic_e))
 
         validate_country_response(json_country_data)
         bitlinks_data[encoded_bitlink] = {}
         for country_obj in json_country_data['metrics']:
             country_name = country_obj['value']
             country_clicks = country_obj['clicks']
-            bitlinks_data[encoded_bitlink][country_name] = (country_clicks / num_days)
+            bitlinks_data[encoded_bitlink][country_name] = (country_clicks / NUM_DAYS)
 
     return bitlinks_data
 
@@ -127,11 +130,11 @@ async def async_http_get_json(base_url, token, params=None):
     json_body = {}
     try:
         json_body = json.loads(response.body)
-    except Exception as e:
+    except Exception as generic_e:
         # In general don't catch generic, but functionally it doesn't matter
         # why the JSON couldn't parse, just that it couldn't parse. Would not
         # do in production
-        logging.error(f'Could not parse data from Bitly (expected JSON): {str(e)}')
+        logging.error('Could not parse data from Bitly (expected JSON): %s', str(generic_e))
 
     return json_body
 
@@ -166,7 +169,7 @@ def validate_bitlinks_response(response):
         raise ValueError('"links" field not in data retrieved from Bitly')
     for link_obj in response['links']:
         if 'link' not in link_obj:
-            logging.error(f'"link" field missing from bitlinks data: {json.dumps(link_obj)}')
+            logging.error('"link" field missing from bitlinks data: %s', json.dumps(link_obj))
             raise ValueError('"link" field not in data retrieved from Bitly')
         if not isinstance(link_obj['link'], str):
             raise TypeError('"link" field data type from Bitly is incorrect')
@@ -182,10 +185,10 @@ def validate_country_response(response):
         raise ValueError('"metrics" field not in data retrieved from Bitly')
     for country_obj in response['metrics']:
         if 'value' not in country_obj:
-            logging.error(f'"value" field missing from bitlinks data: {json.dumps(country_obj)}')
+            logging.error('"value" field missing from bitlinks data: %s', json.dumps(country_obj))
             raise ValueError('"value" field not in data retrieved from Bitly')
         if 'clicks' not in country_obj:
-            logging.error(f'"clicks" field missing from bitlinks data: {json.dumps(country_obj)}')
+            logging.error('"clicks" field missing from bitlinks data: %s', json.dumps(country_obj))
             raise ValueError('"clicks" field not in data retrieved from Bitly')
 
 def get_user_url():
@@ -198,12 +201,12 @@ def get_bitlinks_url(group_guid):
     Params:
         group_guid: group_guid to use to build this URL
     """
-    return (f'https://api-ssl.bitly.com/v4/groups/{group_guid}/bitlinks')
+    return f'https://api-ssl.bitly.com/v4/groups/{group_guid}/bitlinks'
 
 def get_country_url(bitlink):
     """ Return Bitly API endpoint for accessing bitly metrics by country
     """
-    return (f'https://api-ssl.bitly.com/v4/bitlinks/{bitlink}/countries')
+    return f'https://api-ssl.bitly.com/v4/bitlinks/{bitlink}/countries'
 
 def parse_bitlink(bitlink_url):
     """ Strip a URL of the HTML scheme and delimiter
@@ -213,8 +216,8 @@ def parse_bitlink(bitlink_url):
     Return:
         Domain and hash of the bitlink
     """
-    prefix_start_pos = bitlink_url.find(html_prefix_end)
+    prefix_start_pos = bitlink_url.find(HTML_PREFIX_END)
     # increment the counter the last char of the '{scheme}://' URL component
-    prefix_end_pos = prefix_start_pos + len(html_prefix_end)
+    prefix_end_pos = prefix_start_pos + len(HTML_PREFIX_END)
     # return the domain and hash of the bitlink
     return bitlink_url[prefix_end_pos:]
