@@ -138,7 +138,7 @@ def send_httperr(request_handler, err_type, err_msg, status=HTTPStatus.INTERNAL_
     request_handler.set_status(status)
     request_handler.finish(http_err)
 
-def signal_handler(signal, frame):
+def signal_handler(sig, frame):
     """ Install signal handler for things like Ctrl+C
     """
     logging.info('Caught signal, exiting...')

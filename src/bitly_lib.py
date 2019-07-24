@@ -9,7 +9,6 @@ import tornado.httpclient     # for async http client
 import tornado.httputil       # for various http client utilities
 import urllib.parse           # for bitly url encoding
 import logging
-import time # !!! SW remove when done testing
 
 ##### Define convenience variables #####
 html_prefix_end = '://' # delimiter between url scheme and domain
@@ -147,7 +146,6 @@ async def async_http_get(base_url, token, params=None):
     Return:
         Response future resulting from HTTP get
     """
-    print(f"!!! SW url {base_url} at time {time.time()}")
     client = tornado.httpclient.AsyncHTTPClient()
     headers = tornado.httputil.HTTPHeaders({"Authorization": "Bearer " + token})
     url = tornado.httputil.url_concat(base_url, params)
