@@ -15,9 +15,10 @@ import json                   # for JSON manipulation
 import tornado.ioloop         # for web server hosting
 import tornado.web            # for web server hosting
 import tornado.httpclient     # for HTTP exceptions from tornado AsyncHTTPClient
-import bitly_lib as bitly     # for bitly api interactions
 import logging
 from enum import Enum         # for standard error enumeration
+from http import HTTPStatus   # for http status enum (for code clarity)
+import bitly_lib as bitly     # for bitly api interactions
 
 ##### Define port for web server to listen on #####
 web_server_port = 8080
@@ -57,7 +58,7 @@ class ClickHandler(tornado.web.RequestHandler):
             token = self.request.headers.get('access_token')
             if not token or not isinstance(token, str):
                 send_httperr(self, Errors.BAD_TOKEN_ERR.value, "Invalid access token provided",
-                    status=401)
+                    status=HTTPStatus.UNAUTHORIZED)
                 return
 
             bitlinks_data = await bitly.async_get_metrics(token)
@@ -119,13 +120,13 @@ def send_success(request_handler, json_body):
     else:
         request_handler.write(json_body)
 
-def send_httperr(request_handler, err_type, err_msg, status=500):
+def send_httperr(request_handler, err_type, err_msg, status=HTTPStatus.INTERNAL_SERVER_ERROR):
     """ Handle boilerplate for returning HTTP error with message
     Params
         calling_handler: Tornado API endpoint returning error
         err_type: Type enum for automations to better understand
         err_msg: Human-readable semi-specific error message
-        status: [optional] HTTP code to send error as
+        status: [optional] HTTPStatus enum to send error as
     """
     uri = request_handler.request.uri
     logging.debug(f'Sending HTTP error (for uri {uri}): {err_msg}')
