@@ -92,7 +92,7 @@ def validate_bitlinks_response(response):
 
 @tornado.gen.coroutine
 def async_get_country_counts(token, encoded_bitlinks_list):
-    """ Async get country click metrics, per bitlink, per month
+    """ Async/concurrently get country click metrics, per bitlink, per month
     Params:
         token: Access token for Bitly API request
         encoded_bitlinks_list: List of encoded bitlinks to get metrics for
@@ -108,20 +108,21 @@ def async_get_country_counts(token, encoded_bitlinks_list):
     """
     bitlinks_data = {}
     payload = {'unit': 'day', 'units': 30}
-    responses = yield tornado.gen.multi([async_http_get(get_country_url(url), token, params=payload) for url in encoded_bitlinks_list])
+    responses = yield tornado.gen.multi([async_http_get(get_country_url(url), token, params=payload)
+        for url in encoded_bitlinks_list])
 
     # tornado multi produces a list in the same order as passed in, so we can zip the
-    # encoded bitlinks (as keys) with the responses (as values) safely
-    bitlink_to_country_data = dict(zip(encoded_bitlinks_list, responses))
-    for encoded_bitlink, country_response_future in bitlink_to_country_data.items():
+    # encoded bitlinks (as keys) with the response futures (as values) safely
+    bitlink_to_country_future = dict(zip(encoded_bitlinks_list, responses))
+    for encoded_bitlink, country_future in bitlink_to_country_future.items():
         json_country_data = {}
         try:
-            json_country_data = json.loads(country_response_future.body)
+            json_country_data = json.loads(country_future.body)
         except Exception as e:
             # In general don't catch generic, but functionally it doesn't matter
             # why the JSON couldn't parse, just that it couldn't parse. Would not
             # do in production
-            logging.error(f'Could not parse data from Bitly for bitlink {encoded_bitlink}: {country_response_future}')
+            logging.error(f'Could not parse data from Bitly for bitlink {encoded_bitlink}: {country_future}')
 
         validate_country_response(json_country_data)
         bitlinks_data[encoded_bitlink] = {}
