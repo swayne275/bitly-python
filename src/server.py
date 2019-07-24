@@ -14,7 +14,6 @@ import sys                    # for signal handling
 import json                   # for JSON manipulation
 import tornado.ioloop         # for web server hosting
 import tornado.web            # for web server hosting
-import tornado.gen            # for building an async API in tornado
 import tornado.httpclient     # for HTTP exceptions from tornado AsyncHTTPClient
 import bitly_lib as bitly     # for bitly api interactions
 import logging
@@ -36,8 +35,7 @@ api_version = "v1"      # api version served by this file
 class MainHandler(tornado.web.RequestHandler):
     """ Handle gets for '/' by returning basic API data
     """
-    @tornado.gen.coroutine
-    def get(self):
+    async def get(self):
         try:
             response = {}
             response['apiversion'] = api_version
@@ -46,8 +44,7 @@ class MainHandler(tornado.web.RequestHandler):
         except Exception as e:
             logging.error(f'Error: could not serve /: {str(e)}')
 
-    @tornado.gen.coroutine
-    def write_error(self, status_code, **kwargs):
+    async def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
         """
         override_write_error(self, status_code)
@@ -55,8 +52,7 @@ class MainHandler(tornado.web.RequestHandler):
 class ClickHandler(tornado.web.RequestHandler):
     """ Handle "/api/<ver>/metrics" and return bitlinks country metrics
     """
-    @tornado.gen.coroutine
-    def get(self):
+    async def get(self):
         try:
             token = self.request.headers.get('access_token')
             if not token or not isinstance(token, str):
@@ -64,7 +60,7 @@ class ClickHandler(tornado.web.RequestHandler):
                     status=401)
                 return
 
-            bitlinks_data = yield bitly.async_get_metrics(token)
+            bitlinks_data = await bitly.async_get_metrics(token)
 
             response = {}
             response['metrics'] = bitlinks_data
@@ -79,8 +75,7 @@ class ClickHandler(tornado.web.RequestHandler):
         except Exception as e:
             logging.error(f'Error: could not handle clicks! {str(e)}')
 
-    @tornado.gen.coroutine
-    def write_error(self, status_code, **kwargs):
+    async def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
         """
         override_write_error(self, status_code)
@@ -88,8 +83,7 @@ class ClickHandler(tornado.web.RequestHandler):
 class GenericHandler(tornado.web.RequestHandler):
     """ Handle all unspecified endpoints by returning a pretty JSON error
     """
-    @tornado.gen.coroutine
-    def write_error(self, status_code, **kwargs):
+    async def write_error(self, status_code, **kwargs):
         """ See override_write_error for details
         """
         override_write_error(self, status_code)
