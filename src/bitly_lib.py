@@ -73,23 +73,6 @@ def async_get_bitlinks(token, group_guid):
         encoded_bitlinks_list.append(encoded_bitlink)
     raise tornado.gen.Return(encoded_bitlinks_list)
 
-def validate_bitlinks_response(response):
-    """ Validate the Bitly data returned containing bitlinks for a group_guid
-    Params:
-        response: JSON data from Bitly containing bitlinks for a group_guid
-    Throws:
-        ValueError if expected field is missing
-        TypeError if 'link' field is the wrong type
-    """
-    if 'links' not in response:
-        raise ValueError('"links" field not in data retrieved from Bitly')
-    for link_obj in response['links']:
-        if 'link' not in link_obj:
-            logging.error(f'"link" field missing from bitlinks data: {json.dumps(link_obj)}')
-            raise ValueError('"link" field not in data retrieved from Bitly')
-        if not isinstance(link_obj['link'], str):
-            raise TypeError('"link" field data type from Bitly is incorrect')
-
 @tornado.gen.coroutine
 def async_get_country_counts(token, encoded_bitlinks_list):
     """ Async/concurrently get country click metrics, per bitlink, per month
@@ -133,23 +116,6 @@ def async_get_country_counts(token, encoded_bitlinks_list):
 
     raise tornado.gen.Return(bitlinks_data)
 
-def validate_country_response(response):
-    """ Validate the Bitly data returned containing metrics for a bitlink
-    Params:
-        response: JSON data from Bitly containing bitlinks for a group_guid
-    Throws:
-        ValueError if expected field is missing
-    """
-    if 'metrics' not in response:
-        raise ValueError('"metrics" field not in data retrieved from Bitly')
-    for country_obj in response['metrics']:
-        if 'value' not in country_obj:
-            logging.error(f'"value" field missing from bitlinks data: {json.dumps(country_obj)}')
-            raise ValueError('"value" field not in data retrieved from Bitly')
-        if 'clicks' not in country_obj:
-            logging.error(f'"clicks" field missing from bitlinks data: {json.dumps(country_obj)}')
-            raise ValueError('"clicks" field not in data retrieved from Bitly')
-
 @tornado.gen.coroutine
 def async_http_get(base_url, token, params=None):
     print(f"!!! SW url {base_url} at time {time.time()}")
@@ -190,6 +156,40 @@ def async_http_get_json(base_url, token, params=None):
         logging.error(f'Could not parse data from Bitly (expected JSON): {str(e)}')
 
     raise tornado.gen.Return(json_body)
+
+def validate_bitlinks_response(response):
+    """ Validate the Bitly data returned containing bitlinks for a group_guid
+    Params:
+        response: JSON data from Bitly containing bitlinks for a group_guid
+    Throws:
+        ValueError if expected field is missing
+        TypeError if 'link' field is the wrong type
+    """
+    if 'links' not in response:
+        raise ValueError('"links" field not in data retrieved from Bitly')
+    for link_obj in response['links']:
+        if 'link' not in link_obj:
+            logging.error(f'"link" field missing from bitlinks data: {json.dumps(link_obj)}')
+            raise ValueError('"link" field not in data retrieved from Bitly')
+        if not isinstance(link_obj['link'], str):
+            raise TypeError('"link" field data type from Bitly is incorrect')
+
+def validate_country_response(response):
+    """ Validate the Bitly data returned containing metrics for a bitlink
+    Params:
+        response: JSON data from Bitly containing bitlinks for a group_guid
+    Throws:
+        ValueError if expected field is missing
+    """
+    if 'metrics' not in response:
+        raise ValueError('"metrics" field not in data retrieved from Bitly')
+    for country_obj in response['metrics']:
+        if 'value' not in country_obj:
+            logging.error(f'"value" field missing from bitlinks data: {json.dumps(country_obj)}')
+            raise ValueError('"value" field not in data retrieved from Bitly')
+        if 'clicks' not in country_obj:
+            logging.error(f'"clicks" field missing from bitlinks data: {json.dumps(country_obj)}')
+            raise ValueError('"clicks" field not in data retrieved from Bitly')
 
 def get_user_url():
     """ Return Bitly API endpoint for getting the group_guid
