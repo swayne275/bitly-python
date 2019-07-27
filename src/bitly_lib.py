@@ -2,6 +2,8 @@
 Library for interacting with the relevant Bitly API endpoints
 as per the coding challenge specifications
 
+TODO follow this for formatting https://www.python.org/dev/peps/pep-0257/#multi-line-docstrings
+
 Stephen Wayne
 """
 
@@ -18,11 +20,10 @@ NUM_DAYS = 30           # number of days to average over for this problem
 
 async def async_get_metrics(token, country=None):
     """ Async get country click metrics for a user's default group
-    Params:
-        token: Access token for Bitly API request
-        country: [optional] String representation of country (as defined by Bitly's
-                  API) to filter click metrics on.
-                  Note: All comparisons done with lowercase strings
+    :param token: Access token for Bitly API request
+    :param country: [optional] String representation of country (as defined
+        by Bitly's API) to filter click metrics on.
+        Note: All comparisons done with lowercase strings
     Return:
         JSON data with click metrics, organized by bitlink as follows:
         {
