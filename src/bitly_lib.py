@@ -16,10 +16,13 @@ import tornado.httputil       # for various http client utilities
 HTML_PREFIX_END = '://' # delimiter between url scheme and domain
 NUM_DAYS = 30           # number of days to average over for this problem
 
-async def async_get_metrics(token):
+async def async_get_metrics(token, country=None):
     """ Async get country click metrics for a user's default group
     Params:
         token: Access token for Bitly API request
+        country: [optional] String representation of country (as defined by Bitly's
+                  API) to filter click metrics on.
+                  Note: All comparisons done with lowercase strings
     Return:
         JSON data with click metrics, organized by bitlink as follows:
         {
@@ -32,7 +35,7 @@ async def async_get_metrics(token):
     """
     group_guid = await async_get_group_guid(token)
     encoded_bitlinks_list = await async_get_bitlinks(token, group_guid)
-    bitlinks_data = await async_get_country_counts(token, encoded_bitlinks_list)
+    bitlinks_data = await async_get_country_counts(token, encoded_bitlinks_list, country)
     return bitlinks_data
 
 async def async_get_group_guid(token):
@@ -71,11 +74,14 @@ async def async_get_bitlinks(token, group_guid):
         encoded_bitlinks_list.append(encoded_bitlink)
     return encoded_bitlinks_list
 
-async def async_get_country_counts(token, encoded_bitlinks_list):
+async def async_get_country_counts(token, encoded_bitlinks_list, country=None):
     """ Async/concurrently get country click metrics, per bitlink, per month
     Params:
         token: Access token for Bitly API request
         encoded_bitlinks_list: List of encoded bitlinks to get metrics for
+        country: [optional] String representation of country (as defined by Bitly's
+                  API) to filter click metrics on.
+                  Note: All comparisons done with lowercase strings
     Return:
         JSON data with click metrics, organized by bitlink as follows:
         {
@@ -91,6 +97,9 @@ async def async_get_country_counts(token, encoded_bitlinks_list):
     responses = await tornado.gen.multi([async_http_get(get_country_url(url), token, params=payload)
                                          for url in encoded_bitlinks_list])
 
+    lcase_country = None
+    if country is not None:
+        lcase_country = country.lower()
     # tornado multi produces a list in the same order as passed in, so we can zip the
     # encoded bitlinks (as keys) with the response futures (as values) safely
     bitlink_to_country_future = dict(zip(encoded_bitlinks_list, responses))
@@ -110,7 +119,8 @@ async def async_get_country_counts(token, encoded_bitlinks_list):
         for country_obj in json_country_data['metrics']:
             country_name = country_obj['value']
             country_clicks = country_obj['clicks']
-            bitlinks_data[encoded_bitlink][country_name] = (country_clicks / NUM_DAYS)
+            if lcase_country is None or lcase_country == country_name.lower():
+                bitlinks_data[encoded_bitlink][country_name] = (country_clicks / NUM_DAYS)
 
     return bitlinks_data
 

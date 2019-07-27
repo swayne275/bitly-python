@@ -56,6 +56,8 @@ class MainHandler(tornado.web.RequestHandler):
 
 class ClickHandler(tornado.web.RequestHandler):
     """ Handle "/api/<ver>/metrics" and return bitlinks country metrics
+    Note: An optional "country" filter will provide results for only the
+          string specified (compared as lowercase)
     """
     async def get(self):
         try:
@@ -65,7 +67,9 @@ class ClickHandler(tornado.web.RequestHandler):
                              status=HTTPStatus.UNAUTHORIZED)
                 return
 
-            bitlinks_data = await bitly.async_get_metrics(token)
+            country_filter_str = self.get_argument("country", default=None)
+            bitlinks_data = await bitly.async_get_metrics(token,
+                                                          country=country_filter_str)
 
             response = {}
             response['metrics'] = bitlinks_data
