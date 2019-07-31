@@ -2,6 +2,8 @@
 Python solution to Bitly's backend coding challenge:
 https://gist.github.com/jctbitly/05044bb3281ca6723bc118babc77afc7
 
+This challenge exceeded expectations to get an in-person interview.
+
 # Summary
 This is a solution to the bitly_backend_test, written in Python 3 using
 Tornado as the primary library to both serve the API and interact with
